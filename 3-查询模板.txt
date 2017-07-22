@@ -1,0 +1,109 @@
+#p30 2.3查询模板
+
+#创建library索引
+curl -XPUT 'localhost:9200/library' -d '{
+	"settings":{
+		"index":{
+			"number_of_shards":1,
+			"number_of_replicas":0
+		}
+	}
+}'
+#返回：
+{"acknowledged":true,"shards_acknowledged":true}
+
+
+#创建mapping
+curl -XPUT 'localhost:9200/library/_mapping/book' -d '{
+	"properties":{
+		"author":{
+			"type":"string"
+		},
+		"characters":{
+			"type":"string"
+		},
+		"copies":{
+			"type":"long",
+			"ignore_malformed":false
+		},
+		"otitle":{
+			"type":"string"
+		},
+		"tags":{
+			"type":"string",
+			"index":"not_analyzed"
+		},
+		"title":{
+			"type":"string"
+		},
+		"year":{
+			"type":"long",
+			"ignore_malformed":false
+		},
+		"avaliable":{
+			"type":"boolean"
+		},
+		"review":{
+			"type":"nested",
+			"properties":{
+				"nickname":{
+					"type":"string"
+				},
+				"text":{
+					"type":"string"
+				},
+				"stars":{
+					"type":"integer"
+				}
+			}
+		}
+	}
+}'
+#返回：
+{"acknowledged":true}
+
+
+#设置library测试数据 注意books.json每一行必须有回车，包括最后一行！
+curl -H "Content-Type:application/x-ndjson" -XPOST 'localhost:9200/_bulk' --data-binary @"books.json"
+返回：
+{"took":17,"errors":false,"items":[{"index":{"_index":"library","_type":"book","_id":"1","_version":3,"result":"created","_shards":{"total":1,"successful":1,"failed":0},"created":true,"status":201}},{"index":{"_index":"library","_type":"book","_id":"2","_version":1,"result":"created","_shards":{"total":1,"successful":1,"failed":0},"created":true,"status":201}},{"index":{"_index":"library","_type":"book","_id":"3","_version":1,"result":"created","_shards":{"total":1,"successful":1,"failed":0},"created":true,"status":201}},{"index":{"_index":"library","_type":"book","_id":"4","_version":1,"result":"created","_shards":{"total":1,"successful":1,"failed":0},"created":true,"status":201}}]}
+
+
+#创建模板
+curl -XGET 'localhost:9200/library/_search/template?pretty' -d '{
+	"template":{
+		"query":{
+			"filtered":{
+				"query":{
+					"match":{
+						"_all":"{{phrase}}"
+					}
+				}
+			},
+			"filter":{
+				"term":{
+					"avaliable":"{{avail}}"
+				}
+			}
+		}
+	},
+	"params":{
+		"phrase":"front",
+		"avail":true
+	}
+}'
+#因为我用的是5.5.0，filtered已经被bool替换掉了，所以测试时使用如下：
+curl -XGET 'localhost:9200/library/_search/template?pretty' -d '{
+	"inline":{
+		"query":{
+			"match":{
+				"_all":"{{phrase}}"
+			}
+		}
+	},
+	"params":{
+		"phrase":"front"
+	}
+}'
+
+

@@ -1,0 +1,336 @@
+#p36 2.4 过滤器的使用及作用原理
+#普通查询
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"term":{
+			"title":"front"
+		}
+	}
+}'
+#返回：
+{
+  "took" : 1,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 0.8809557,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "1",
+        "_score" : 0.8809557,
+        "_source" : {
+          "title" : "All Quiet on the Western Front",
+          "otitle" : "Im Westennichts Nenues",
+          "author" : "Erich Maria Remarque",
+          "year" : 1929,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [
+            "novel"
+          ],
+          "copies" : 1,
+          "avaliable" : true
+        }
+      }
+    ]
+  }
+}
+
+
+#查询复合两个条件的文档
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"bool":{
+			"must":[
+				{
+					"term":{
+						"title":"front"
+					}
+				},
+				{
+					"term":{
+						"copies":{
+							"value":1
+						}
+					}
+				}
+			]
+		}
+	}
+}'
+#返回：
+{
+  "took" : 6,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 1.8809557,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "1",
+        "_score" : 1.8809557,
+        "_source" : {
+          "title" : "All Quiet on the Western Front",
+          "otitle" : "Im Westennichts Nenues",
+          "author" : "Erich Maria Remarque",
+          "year" : 1929,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [
+            "novel"
+          ],
+          "copies" : 1,
+          "avaliable" : true
+        }
+      }
+    ]
+  }
+}
+
+
+#普通过滤查询
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"term":{
+			"title":"front"
+		}
+	},
+	"post_filter":{
+		"term":{
+			"copies":1
+		}
+	}
+}'
+#返回：
+{
+  "took" : 2,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 0.8809557,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "1",
+        "_score" : 0.8809557,
+        "_source" : {
+          "title" : "All Quiet on the Western Front",
+          "otitle" : "Im Westennichts Nenues",
+          "author" : "Erich Maria Remarque",
+          "year" : 1929,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [
+            "novel"
+          ],
+          "copies" : 1,
+          "avaliable" : true
+        }
+      }
+    ]
+  }
+}
+
+
+#后置过滤器和过滤查询
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"terms":{
+			"title" : ["crime", "punishment", "complete", "front"]
+		}
+	},
+	"post_filter":{
+		"term":{
+			"avaliable":{
+				"value":true
+			}
+		}
+	}
+}'
+#返回：
+{
+  "took" : 6,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 2,
+    "max_score" : 2.344018,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "4",
+        "_score" : 2.344018,
+        "_source" : {
+          "title" : "Crime and Punishment",
+          "otitle" : "Crime and Punishment otitle",
+          "author" : "Fyodor Dostoevsky",
+          "year" : 1886,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [ ],
+          "copies" : 0,
+          "avaliable" : true
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "1",
+        "_score" : 0.8809557,
+        "_source" : {
+          "title" : "All Quiet on the Western Front",
+          "otitle" : "Im Westennichts Nenues",
+          "author" : "Erich Maria Remarque",
+          "year" : 1929,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [
+            "novel"
+          ],
+          "copies" : 1,
+          "avaliable" : true
+        }
+      }
+    ]
+  }
+}
+
+
+#针对上一个例子，使用前置过滤器和过滤查询
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"bool":{
+			"must":{
+				"terms":{
+					"title" : ["crime", "punishment", "complete", "front"]
+				}
+			},
+			"filter":{
+				"term":{
+					"avaliable":{
+						"value":true
+					}
+				}
+			}
+		}
+	}
+}'
+#返回：
+{
+  "took" : 22,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 2,
+    "max_score" : 2.344018,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "4",
+        "_score" : 2.344018,
+        "_source" : {
+          "title" : "Crime and Punishment",
+          "otitle" : "Crime and Punishment otitle",
+          "author" : "Fyodor Dostoevsky",
+          "year" : 1886,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [ ],
+          "copies" : 0,
+          "avaliable" : true
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "1",
+        "_score" : 0.8809557,
+        "_source" : {
+          "title" : "All Quiet on the Western Front",
+          "otitle" : "Im Westennichts Nenues",
+          "author" : "Erich Maria Remarque",
+          "year" : 1929,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [
+            "novel"
+          ],
+          "copies" : 1,
+          "avaliable" : true
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,337 @@
+
+#p21 2.1.4 一个例子
+
+#创建索引
+curl -XPUT 'localhost:9200/scoring' -d '{
+	"settings":{
+		"index":{
+			"number_of_shards": 1,
+			"number_of_replicas": 0
+		}
+	}
+}'
+#返回：
+{"acknowledged":true,"shards_acknowledged":true}
+
+
+#索引文档
+curl -XPOST 'localhost:9200/scoring/doc/1' -d '{
+	"name":"first document"
+}'
+#返回：
+{"_index":"scoring","_type":"doc","_id":"1","_version":1,"result":"created","_shards":{"total":1,"successful":1,"failed":0},"created":true}
+
+
+#查询文档
+curl -XGET 'localhost:9200/scoring/_search?pretty' -d '{
+	"query": {
+		"match":{
+			"name":"document"
+		}
+	}
+}'
+#返回：
+{
+  "took" : 61,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 0.25811607,
+    "hits" : [
+      {
+        "_index" : "scoring",
+        "_type" : "doc",
+        "_id" : "1",
+        "_score" : 0.25811607,
+        "_source" : {
+          "name" : "first document"
+        }
+      }
+    ]
+  }
+}
+
+#查看文档计算得分过程
+curl -XGET 'localhost:9200/scoring/doc/1/_explain?pretty' -d '{
+	"query": {
+		"match":{
+			"name":"document"
+		}
+	}
+}'
+#返回：
+{
+  "_index" : "scoring",
+  "_type" : "doc",
+  "_id" : "1",
+  "matched" : true,
+  "explanation" : {
+    "value" : 0.25811607,
+    "description" : "weight(name:document in 0) [PerFieldSimilarity], result of:",
+    "details" : [
+      {
+        "value" : 0.25811607,
+        "description" : "score(doc=0,freq=1.0 = termFreq=1.0\n), product of:",
+        "details" : [
+          {
+            "value" : 0.2876821,
+            "description" : "idf, computed as log(1 + (docCount - docFreq + 0.5) / (docFreq + 0.5)) from:",
+            "details" : [
+              {
+                "value" : 1.0,
+                "description" : "docFreq",
+                "details" : [ ]
+              },
+              {
+                "value" : 1.0,
+                "description" : "docCount",
+                "details" : [ ]
+              }
+            ]
+          },
+          {
+            "value" : 0.89722675,
+            "description" : "tfNorm, computed as (freq * (k1 + 1)) / (freq + k1 * (1 - b + b * fieldLength / avgFieldLength)) from:",
+            "details" : [
+              {
+                "value" : 1.0,
+                "description" : "termFreq=1.0",
+                "details" : [ ]
+              },
+              {
+                "value" : 1.2,
+                "description" : "parameter k1",
+                "details" : [ ]
+              },
+              {
+                "value" : 0.75,
+                "description" : "parameter b",
+                "details" : [ ]
+              },
+              {
+                "value" : 2.0,
+                "description" : "avgFieldLength",
+                "details" : [ ]
+              },
+              {
+                "value" : 2.56,
+                "description" : "fieldLength",
+                "details" : [ ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
+
+
+#添加第二个文档
+curl -XPOST 'localhost:9200/scoring/doc/2' -d '{
+	"name":"second example document"
+}'
+#返回：
+{"_index":"scoring","_type":"doc","_id":"2","_version":1,"result":"created","_shards":{"total":1,"successful":1,"failed":0},"created":true}
+
+
+#再次执行查询
+curl -XGET 'localhost:9200/scoring/_search?pretty' -d '{
+	"query": {
+		"match":{
+			"name":"document"
+		}
+	}
+}'
+#返回：
+{
+  "took" : 2,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 2,
+    "max_score" : 0.1805489,
+    "hits" : [
+      {
+        "_index" : "scoring",
+        "_type" : "doc",
+        "_id" : "1",
+        "_score" : 0.1805489,
+        "_source" : {
+          "name" : "first document"
+        }
+      },
+      {
+        "_index" : "scoring",
+        "_type" : "doc",
+        "_id" : "2",
+        "_score" : 0.14638957,
+        "_source" : {
+          "name" : "second example document"
+        }
+      }
+    ]
+  }
+}
+
+
+#再查看文档1得分解释
+curl -XGET 'localhost:9200/scoring/doc/1/_explain?pretty' -d '{
+	"query": {
+		"match":{
+			"name":"document"
+		}
+	}
+}'
+#返回：
+{
+  "_index" : "scoring",
+  "_type" : "doc",
+  "_id" : "1",
+  "matched" : true,
+  "explanation" : {
+    "value" : 0.1805489,
+    "description" : "weight(name:document in 0) [PerFieldSimilarity], result of:",
+    "details" : [
+      {
+        "value" : 0.1805489,
+        "description" : "score(doc=0,freq=1.0 = termFreq=1.0\n), product of:",
+        "details" : [
+          {
+            "value" : 0.18232156,
+            "description" : "idf, computed as log(1 + (docCount - docFreq + 0.5) / (docFreq + 0.5)) from:",
+            "details" : [
+              {
+                "value" : 2.0,
+                "description" : "docFreq",
+                "details" : [ ]
+              },
+              {
+                "value" : 2.0,
+                "description" : "docCount",
+                "details" : [ ]
+              }
+            ]
+          },
+          {
+            "value" : 0.9902773,
+            "description" : "tfNorm, computed as (freq * (k1 + 1)) / (freq + k1 * (1 - b + b * fieldLength / avgFieldLength)) from:",
+            "details" : [
+              {
+                "value" : 1.0,
+                "description" : "termFreq=1.0",
+                "details" : [ ]
+              },
+              {
+                "value" : 1.2,
+                "description" : "parameter k1",
+                "details" : [ ]
+              },
+              {
+                "value" : 0.75,
+                "description" : "parameter b",
+                "details" : [ ]
+              },
+              {
+                "value" : 2.5,
+                "description" : "avgFieldLength",
+                "details" : [ ]
+              },
+              {
+                "value" : 2.56,
+                "description" : "fieldLength",
+                "details" : [ ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
+
+
+#再查看文档2得分解释
+curl -XGET 'localhost:9200/scoring/doc/2/_explain?pretty' -d '{
+	"query": {
+		"match":{
+			"name":"document"
+		}
+	}
+}'
+#返回：
+{
+  "_index" : "scoring",
+  "_type" : "doc",
+  "_id" : "2",
+  "matched" : true,
+  "explanation" : {
+    "value" : 0.14638956,
+    "description" : "weight(name:document in 0) [PerFieldSimilarity], result of:",
+    "details" : [
+      {
+        "value" : 0.14638956,
+        "description" : "score(doc=0,freq=1.0 = termFreq=1.0\n), product of:",
+        "details" : [
+          {
+            "value" : 0.18232156,
+            "description" : "idf, computed as log(1 + (docCount - docFreq + 0.5) / (docFreq + 0.5)) from:",
+            "details" : [
+              {
+                "value" : 2.0,
+                "description" : "docFreq",
+                "details" : [ ]
+              },
+              {
+                "value" : 2.0,
+                "description" : "docCount",
+                "details" : [ ]
+              }
+            ]
+          },
+          {
+            "value" : 0.8029196,
+            "description" : "tfNorm, computed as (freq * (k1 + 1)) / (freq + k1 * (1 - b + b * fieldLength / avgFieldLength)) from:",
+            "details" : [
+              {
+                "value" : 1.0,
+                "description" : "termFreq=1.0",
+                "details" : [ ]
+              },
+              {
+                "value" : 1.2,
+                "description" : "parameter k1",
+                "details" : [ ]
+              },
+              {
+                "value" : 0.75,
+                "description" : "parameter b",
+                "details" : [ ]
+              },
+              {
+                "value" : 2.5,
+                "description" : "avgFieldLength",
+                "details" : [ ]
+              },
+              {
+                "value" : 4.0,
+                "description" : "fieldLength",
+                "details" : [ ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
+

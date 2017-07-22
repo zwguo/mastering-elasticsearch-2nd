@@ -1,0 +1,201 @@
+#p24 2.2 查询改写
+#创建索引
+curl -XPUT 'localhost:9200/clients' -d '{
+	"settings":{
+		"index":{
+			"number_of_shards": 1,
+			"number_of_replicas": 0
+		}
+	}
+}'
+#返回：
+{"acknowledged":true,"shards_acknowledged":true}
+
+
+#索引文档
+curl -XPUT 'localhost:9200/clients/client/1' -d '{
+	"id":"1", "name":"Joe"
+}'
+#返回：
+{"_index":"clients","_type":"client","_id":"1","_version":1,"result":"created","_shards":{"total":1,"successful":1,"failed":0},"created":true}
+
+
+#索引文档
+curl -XPUT 'localhost:9200/clients/client/2' -d '{
+	"id":"2", "name":"Jane"
+}'
+#返回：
+{"_index":"clients","_type":"client","_id":"2","_version":1,"result":"created","_shards":{"total":1,"successful":1,"failed":0},"created":true}
+
+
+#索引文档
+curl -XPUT 'localhost:9200/clients/client/3' -d '{
+	"id":"3", "name":"Jack"
+}'
+#返回：
+{"_index":"clients","_type":"client","_id":"3","_version":1,"result":"created","_shards":{"total":1,"successful":1,"failed":0},"created":true}
+
+
+#索引文档
+curl -XPUT 'localhost:9200/clients/client/4' -d '{
+	"id":"4", "name":"Rob"
+}'
+#返回：
+{"_index":"clients","_type":"client","_id":"4","_version":1,"result":"created","_shards":{"total":1,"successful":1,"failed":0},"created":true}
+
+
+#查询出name以字母j开头的文档
+curl -XGET 'localhost:9200/clients/_search?pretty' -d '{
+	"query":{
+		"prefix":{
+			"name":{
+				"prefix":"j",
+				"rewrite":"constant_score_boolean"
+			}
+		}
+	}
+}'
+#返回：
+{
+  "took" : 31,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 3,
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "clients",
+        "_type" : "client",
+        "_id" : "1",
+        "_score" : 1.0,
+        "_source" : {
+          "id" : "1",
+          "name" : "Joe"
+        }
+      },
+      {
+        "_index" : "clients",
+        "_type" : "client",
+        "_id" : "2",
+        "_score" : 1.0,
+        "_source" : {
+          "id" : "2",
+          "name" : "Jane"
+        }
+      },
+      {
+        "_index" : "clients",
+        "_type" : "client",
+        "_id" : "3",
+        "_score" : 1.0,
+        "_source" : {
+          "id" : "3",
+          "name" : "Jack"
+        }
+      }
+    ]
+  }
+}
+
+
+#查看es映射
+curl -XGET 'localhost:9200/clients/client/_mapping?pretty'
+#返回：
+{
+  "clients" : {
+    "mappings" : {
+      "client" : {
+        "properties" : {
+          "id" : {
+            "type" : "text",
+            "fields" : {
+              "keyword" : {
+                "type" : "keyword",
+                "ignore_above" : 256
+              }
+            }
+          },
+          "name" : {
+            "type" : "text",
+            "fields" : {
+              "keyword" : {
+                "type" : "keyword",
+                "ignore_above" : 256
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+#查看Lucene的改写
+curl -XGET 'localhost:9200/clients/client/1/_explain?pretty' -d '{
+	"query":{
+		"prefix":{
+			"name":{
+				"prefix":"j",
+				"rewrite":"constant_score_boolean"
+			}
+		}
+	}
+}'
+#返回：
+{
+  "_index" : "clients",
+  "_type" : "client",
+  "_id" : "1",
+  "matched" : true,
+  "explanation" : {
+    "value" : 1.0,
+    "description" : "ConstantScore(name:jack name:jane name:joe), product of:",
+    "details" : [
+      {
+        "value" : 1.0,
+        "description" : "boost",
+        "details" : [ ]
+      },
+      {
+        "value" : 1.0,
+        "description" : "queryNorm",
+        "details" : [ ]
+      }
+    ]
+  }
+}
+
+
+#验证Lucene的改写
+curl -XGET 'localhost:9200/clients/client/_validate/query?explain&pretty' -d '{
+	"query":{
+		"prefix":{
+			"name":{
+				"prefix":"j",
+				"rewrite":"constant_score_boolean"
+			}
+		}
+	}
+}'
+#返回：
+{
+  "valid" : true,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "explanations" : [
+    {
+      "index" : "clients",
+      "valid" : true,
+      "explanation" : "+name:j* #_type:client"
+    }
+  ]
+}

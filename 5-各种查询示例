@@ -1,0 +1,2819 @@
+#p50 2.5.2使用示例 
+
+#更改mapping，增加section
+curl -XPOST 'localhost:9200/library/_mapping/book' -d '{
+	"properties":{
+		"section":{
+			"type":"integer"
+		}
+	}
+}'
+#返回：
+{"acknowledged":true}
+
+
+#测试数据 使用library索引
+curl -XPUT 'localhost:9200/library/book/5' -d '{
+	"title":"The Sorrows of Young Werther",
+	"author":"Johann Wolfgang von Goethe",
+	"avaliable":true,
+	"characters":["Werther", "Lotte", "Albert", "Fraulein von B"],
+	"copies":1,
+	"otitle":"Die Leiden des jungen Werthers",
+	"section":4,
+	"tags":["novel", "classics"],
+	"year":1774,
+	"review":[{
+		"nickname":"Anna",
+		"text":"Could be good, bug not my style",
+		"stars":3
+	}]
+}'
+#返回：
+{"_index":"library","_type":"book","_id":"5","_version":1,"result":"created","_shards":{"total":1,"successful":1,"failed":0},"created":true}
+
+
+#测试数据 使用library索引
+curl -XPUT 'localhost:9200/library/book/6' -d '{
+	"title":"The Peasants",
+	"author":"Widyslaw Reymont",
+	"avaliable":true,
+	"characters":["Maciej Boryna", "Jankiel", "Jagna Paczesiowna", "Antek Boryna"],
+	"copies":4,
+	"otitle":"Chiopi",
+	"section":4,
+	"tags":["novel", "polish", "classics"],
+	"year":1904,
+	"review":[{
+		"nickname":"anonymous",
+		"text":"awsome book",
+		"stars":5
+	},
+	{
+		"nickname":"Jane",
+		"text":"Great book, but too long",
+		"stars":4
+	},
+	{
+		"nickname":"Rick",
+		"text":"Why bother, when you can find it on the internet",
+		"stars":3
+	}]
+}'
+#返回：
+{"_index":"library","_type":"book","_id":"6","_version":1,"result":"created","_shards":{"total":1,"successful":1,"failed":0},"created":true}
+
+
+#基本查询示例
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"range":{
+			"copies":{
+				"gte":1,
+				"lte":3
+			}
+		}
+	}
+}'
+#返回：
+{
+  "took" : 18,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 2,
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "1",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "All Quiet on the Western Front",
+          "otitle" : "Im Westennichts Nenues",
+          "author" : "Erich Maria Remarque",
+          "year" : 1929,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [
+            "novel"
+          ],
+          "copies" : 1,
+          "avaliable" : true
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "5",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "The Sorrows of Young Werther",
+          "author" : "Johann Wolfgang von Goethe",
+          "avaliable" : true,
+          "characters" : [
+            "Werther",
+            "Lotte",
+            "Albert",
+            "Fraulein von B"
+          ],
+          "copies" : 1,
+          "otitle" : "Die Leiden des jungen Werthers",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "classics"
+          ],
+          "year" : 1774,
+          "review" : [
+            {
+              "nickname" : "Anna",
+              "text" : "Could be good, bug not my style",
+              "stars" : 3
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+
+
+#简化的多词项查询 如果文档标签超过3个，则至少75%的给定标签和查询标签符合
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"terms":{
+			"tags":["novel", "polish", "classics", "criminal", "new"],
+			"minimun_should_match": "3<75%"
+		}
+	}
+}'
+#https://stackoverflow.com/questions/40837678/terms-query-does-not-support-minimum-match-in-elasticsearch-2-3-3
+#上面2.0之后的不支持了，用bool：
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"bool":{
+			"minimum_should_match": "3<75%",
+			"should":[
+				{
+					"term":{
+						"tags":"novel"
+					}
+				},
+				{
+					"term":{
+						"tags":"polish"
+					}
+				},
+				{
+					"term":{
+						"tags":"classics"
+					}
+				},
+				{
+					"term":{
+						"tags":"criminal"
+					}
+				},
+				{
+					"term":{
+						"tags":"new"
+					}
+				}
+			]
+		}
+	}
+}'
+#返回：
+{
+  "took" : 3,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 2.0024805,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "6",
+        "_score" : 2.0024805,
+        "_source" : {
+          "title" : "The Peasants",
+          "author" : "Widyslaw Reymont",
+          "avaliable" : true,
+          "characters" : [
+            "Maciej Boryna",
+            "Jankiel",
+            "Jagna Paczesiowna",
+            "Antek Boryna"
+          ],
+          "copies" : 4,
+          "otitle" : "Chiopi",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "polish",
+            "classics"
+          ],
+          "year" : 1904,
+          "review" : [
+            {
+              "nickname" : "anonymous",
+              "text" : "awsome book",
+              "stars" : 5
+            },
+            {
+              "nickname" : "Jane",
+              "text" : "Great book, but too long",
+              "stars" : 4
+            },
+            {
+              "nickname" : "Rick",
+              "text" : "Why bother, when you can find it on the internet",
+              "stars" : 3
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+
+
+#组合查询-对匹配文档加权
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"bool":{
+			"must":[
+				{
+					"range":{
+						"copies":{
+							"gte":1
+						}
+					}
+				}
+			],
+			"should":[
+				{
+					"range":{
+						"year":{
+							"gt":1950
+						}
+					}
+				}
+			]
+		}
+	}
+}'
+#返回：
+{
+  "took" : 9,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 4,
+    "max_score" : 2.0,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "2",
+        "_score" : 2.0,
+        "_source" : {
+          "title" : "Catch-22",
+          "author" : "Joseph Heller",
+          "year" : 1961,
+          "characters" : [
+            "Jhon Yossarian",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [
+            "novel"
+          ],
+          "copies" : 6,
+          "avaliable" : false
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "1",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "All Quiet on the Western Front",
+          "otitle" : "Im Westennichts Nenues",
+          "author" : "Erich Maria Remarque",
+          "year" : 1929,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [
+            "novel"
+          ],
+          "copies" : 1,
+          "avaliable" : true
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "5",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "The Sorrows of Young Werther",
+          "author" : "Johann Wolfgang von Goethe",
+          "avaliable" : true,
+          "characters" : [
+            "Werther",
+            "Lotte",
+            "Albert",
+            "Fraulein von B"
+          ],
+          "copies" : 1,
+          "otitle" : "Die Leiden des jungen Werthers",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "classics"
+          ],
+          "year" : 1774,
+          "review" : [
+            {
+              "nickname" : "Anna",
+              "text" : "Could be good, bug not my style",
+              "stars" : 3
+            }
+          ]
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "6",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "The Peasants",
+          "author" : "Widyslaw Reymont",
+          "avaliable" : true,
+          "characters" : [
+            "Maciej Boryna",
+            "Jankiel",
+            "Jagna Paczesiowna",
+            "Antek Boryna"
+          ],
+          "copies" : 4,
+          "otitle" : "Chiopi",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "polish",
+            "classics"
+          ],
+          "year" : 1904,
+          "review" : [
+            {
+              "nickname" : "anonymous",
+              "text" : "awsome book",
+              "stars" : 5
+            },
+            {
+              "nickname" : "Jane",
+              "text" : "Great book, but too long",
+              "stars" : 4
+            },
+            {
+              "nickname" : "Rick",
+              "text" : "Why bother, when you can find it on the internet",
+              "stars" : 3
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+
+
+#组合查询-忽略查询的较低部分得分
+curl -XGET 'localhost:9200/library/book/_search?pretty' -d '{
+	"fields":["_id", "_score"],
+	"query":{
+		"dis_max":{
+			"tie_breaker":0.0,
+			"queries":[
+				{
+					"match":{
+						"title":"crime punishment"
+					}
+				},
+				{
+					"match":{
+						"characters":"Antek Boryna"
+					}
+				}
+			]
+		}
+	}
+}'
+#上面的fields 5.5.0不支持了，去掉。
+#返回：
+{
+  "took" : 10,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 2,
+    "max_score" : 3.996396,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "6",
+        "_score" : 3.996396,
+        "_source" : {
+          "title" : "The Peasants",
+          "author" : "Widyslaw Reymont",
+          "avaliable" : true,
+          "characters" : [
+            "Maciej Boryna",
+            "Jankiel",
+            "Jagna Paczesiowna",
+            "Antek Boryna"
+          ],
+          "copies" : 4,
+          "otitle" : "Chiopi",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "polish",
+            "classics"
+          ],
+          "year" : 1904,
+          "review" : [
+            {
+              "nickname" : "anonymous",
+              "text" : "awsome book",
+              "stars" : 5
+            },
+            {
+              "nickname" : "Jane",
+              "text" : "Great book, but too long",
+              "stars" : 4
+            },
+            {
+              "nickname" : "Rick",
+              "text" : "Why bother, when you can find it on the internet",
+              "stars" : 3
+            }
+          ]
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "4",
+        "_score" : 2.9704201,
+        "_source" : {
+          "title" : "Crime and Punishment",
+          "otitle" : "Crime and Punishment otitle",
+          "author" : "Fyodor Dostoevsky",
+          "year" : 1886,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [ ],
+          "copies" : 0,
+          "avaliable" : true
+        }
+      }
+    ]
+  }
+}
+#查看其explain：
+curl -XGET 'localhost:9200/library/book/_search?explain&pretty' -d '{
+	"query":{
+		"dis_max":{
+			"tie_breaker":0.0,
+			"queries":[
+				{
+					"match":{
+						"title":"crime punishment"
+					}
+				},
+				{
+					"match":{
+						"characters":"Antek Boryna"
+					}
+				}
+			]
+		}
+	}
+}'
+#返回：
+{
+  "took" : 9,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 2,
+    "max_score" : 3.996396,
+    "hits" : [
+      {
+        "_shard" : "[library][0]",
+        "_node" : "lLX45OxeRDSb3cYu1NtGIw",
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "6",
+        "_score" : 3.996396,
+        "_source" : {
+          "title" : "The Peasants",
+          "author" : "Widyslaw Reymont",
+          "avaliable" : true,
+          "characters" : [
+            "Maciej Boryna",
+            "Jankiel",
+            "Jagna Paczesiowna",
+            "Antek Boryna"
+          ],
+          "copies" : 4,
+          "otitle" : "Chiopi",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "polish",
+            "classics"
+          ],
+          "year" : 1904,
+          "review" : [
+            {
+              "nickname" : "anonymous",
+              "text" : "awsome book",
+              "stars" : 5
+            },
+            {
+              "nickname" : "Jane",
+              "text" : "Great book, but too long",
+              "stars" : 4
+            },
+            {
+              "nickname" : "Rick",
+              "text" : "Why bother, when you can find it on the internet",
+              "stars" : 3
+            }
+          ]
+        },
+        "_explanation" : {
+          "value" : 3.996396,
+          "description" : "sum of:",
+          "details" : [
+            {
+              "value" : 3.996396,
+              "description" : "max of:",
+              "details" : [
+                {
+                  "value" : 3.996396,
+                  "description" : "sum of:",
+                  "details" : [
+                    {
+                      "value" : 1.7170826,
+                      "description" : "weight(characters:antek in 3) [PerFieldSimilarity], result of:",
+                      "details" : [
+                        {
+                          "value" : 1.7170826,
+                          "description" : "score(doc=3,freq=1.0 = termFreq=1.0\n), product of:",
+                          "details" : [
+                            {
+                              "value" : 1.5404451,
+                              "description" : "idf, computed as log(1 + (docCount - docFreq + 0.5) / (docFreq + 0.5)) from:",
+                              "details" : [
+                                {
+                                  "value" : 1.0,
+                                  "description" : "docFreq",
+                                  "details" : [ ]
+                                },
+                                {
+                                  "value" : 6.0,
+                                  "description" : "docCount",
+                                  "details" : [ ]
+                                }
+                              ]
+                            },
+                            {
+                              "value" : 1.1146666,
+                              "description" : "tfNorm, computed as (freq * (k1 + 1)) / (freq + k1 * (1 - b + b * fieldLength / avgFieldLength)) from:",
+                              "details" : [
+                                {
+                                  "value" : 1.0,
+                                  "description" : "termFreq=1.0",
+                                  "details" : [ ]
+                                },
+                                {
+                                  "value" : 1.2,
+                                  "description" : "parameter k1",
+                                  "details" : [ ]
+                                },
+                                {
+                                  "value" : 0.75,
+                                  "description" : "parameter b",
+                                  "details" : [ ]
+                                },
+                                {
+                                  "value" : 9.5,
+                                  "description" : "avgFieldLength",
+                                  "details" : [ ]
+                                },
+                                {
+                                  "value" : 7.111111,
+                                  "description" : "fieldLength",
+                                  "details" : [ ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "value" : 2.2793133,
+                      "description" : "weight(characters:boryna in 3) [PerFieldSimilarity], result of:",
+                      "details" : [
+                        {
+                          "value" : 2.2793133,
+                          "description" : "score(doc=3,freq=2.0 = termFreq=2.0\n), product of:",
+                          "details" : [
+                            {
+                              "value" : 1.5404451,
+                              "description" : "idf, computed as log(1 + (docCount - docFreq + 0.5) / (docFreq + 0.5)) from:",
+                              "details" : [
+                                {
+                                  "value" : 1.0,
+                                  "description" : "docFreq",
+                                  "details" : [ ]
+                                },
+                                {
+                                  "value" : 6.0,
+                                  "description" : "docCount",
+                                  "details" : [ ]
+                                }
+                              ]
+                            },
+                            {
+                              "value" : 1.479646,
+                              "description" : "tfNorm, computed as (freq * (k1 + 1)) / (freq + k1 * (1 - b + b * fieldLength / avgFieldLength)) from:",
+                              "details" : [
+                                {
+                                  "value" : 2.0,
+                                  "description" : "termFreq=2.0",
+                                  "details" : [ ]
+                                },
+                                {
+                                  "value" : 1.2,
+                                  "description" : "parameter k1",
+                                  "details" : [ ]
+                                },
+                                {
+                                  "value" : 0.75,
+                                  "description" : "parameter b",
+                                  "details" : [ ]
+                                },
+                                {
+                                  "value" : 9.5,
+                                  "description" : "avgFieldLength",
+                                  "details" : [ ]
+                                },
+                                {
+                                  "value" : 7.111111,
+                                  "description" : "fieldLength",
+                                  "details" : [ ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "value" : 0.0,
+              "description" : "match on required clause, product of:",
+              "details" : [
+                {
+                  "value" : 0.0,
+                  "description" : "# clause",
+                  "details" : [ ]
+                },
+                {
+                  "value" : 1.0,
+                  "description" : "_type:book, product of:",
+                  "details" : [
+                    {
+                      "value" : 1.0,
+                      "description" : "boost",
+                      "details" : [ ]
+                    },
+                    {
+                      "value" : 1.0,
+                      "description" : "queryNorm",
+                      "details" : [ ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "_shard" : "[library][0]",
+        "_node" : "lLX45OxeRDSb3cYu1NtGIw",
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "4",
+        "_score" : 2.9704201,
+        "_source" : {
+          "title" : "Crime and Punishment",
+          "otitle" : "Crime and Punishment otitle",
+          "author" : "Fyodor Dostoevsky",
+          "year" : 1886,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [ ],
+          "copies" : 0,
+          "avaliable" : true
+        },
+        "_explanation" : {
+          "value" : 2.9704201,
+          "description" : "sum of:",
+          "details" : [
+            {
+              "value" : 2.9704201,
+              "description" : "max of:",
+              "details" : [
+                {
+                  "value" : 2.9704201,
+                  "description" : "sum of:",
+                  "details" : [
+                    {
+                      "value" : 1.4852101,
+                      "description" : "weight(title:crime in 3) [PerFieldSimilarity], result of:",
+                      "details" : [
+                        {
+                          "value" : 1.4852101,
+                          "description" : "score(doc=3,freq=1.0 = termFreq=1.0\n), product of:",
+                          "details" : [
+                            {
+                              "value" : 1.5404451,
+                              "description" : "idf, computed as log(1 + (docCount - docFreq + 0.5) / (docFreq + 0.5)) from:",
+                              "details" : [
+                                {
+                                  "value" : 1.0,
+                                  "description" : "docFreq",
+                                  "details" : [ ]
+                                },
+                                {
+                                  "value" : 6.0,
+                                  "description" : "docCount",
+                                  "details" : [ ]
+                                }
+                              ]
+                            },
+                            {
+                              "value" : 0.96414346,
+                              "description" : "tfNorm, computed as (freq * (k1 + 1)) / (freq + k1 * (1 - b + b * fieldLength / avgFieldLength)) from:",
+                              "details" : [
+                                {
+                                  "value" : 1.0,
+                                  "description" : "termFreq=1.0",
+                                  "details" : [ ]
+                                },
+                                {
+                                  "value" : 1.2,
+                                  "description" : "parameter k1",
+                                  "details" : [ ]
+                                },
+                                {
+                                  "value" : 0.75,
+                                  "description" : "parameter b",
+                                  "details" : [ ]
+                                },
+                                {
+                                  "value" : 3.6666667,
+                                  "description" : "avgFieldLength",
+                                  "details" : [ ]
+                                },
+                                {
+                                  "value" : 4.0,
+                                  "description" : "fieldLength",
+                                  "details" : [ ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "value" : 1.4852101,
+                      "description" : "weight(title:punishment in 3) [PerFieldSimilarity], result of:",
+                      "details" : [
+                        {
+                          "value" : 1.4852101,
+                          "description" : "score(doc=3,freq=1.0 = termFreq=1.0\n), product of:",
+                          "details" : [
+                            {
+                              "value" : 1.5404451,
+                              "description" : "idf, computed as log(1 + (docCount - docFreq + 0.5) / (docFreq + 0.5)) from:",
+                              "details" : [
+                                {
+                                  "value" : 1.0,
+                                  "description" : "docFreq",
+                                  "details" : [ ]
+                                },
+                                {
+                                  "value" : 6.0,
+                                  "description" : "docCount",
+                                  "details" : [ ]
+                                }
+                              ]
+                            },
+                            {
+                              "value" : 0.96414346,
+                              "description" : "tfNorm, computed as (freq * (k1 + 1)) / (freq + k1 * (1 - b + b * fieldLength / avgFieldLength)) from:",
+                              "details" : [
+                                {
+                                  "value" : 1.0,
+                                  "description" : "termFreq=1.0",
+                                  "details" : [ ]
+                                },
+                                {
+                                  "value" : 1.2,
+                                  "description" : "parameter k1",
+                                  "details" : [ ]
+                                },
+                                {
+                                  "value" : 0.75,
+                                  "description" : "parameter b",
+                                  "details" : [ ]
+                                },
+                                {
+                                  "value" : 3.6666667,
+                                  "description" : "avgFieldLength",
+                                  "details" : [ ]
+                                },
+                                {
+                                  "value" : 4.0,
+                                  "description" : "fieldLength",
+                                  "details" : [ ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "value" : 0.0,
+              "description" : "match on required clause, product of:",
+              "details" : [
+                {
+                  "value" : 0.0,
+                  "description" : "# clause",
+                  "details" : [ ]
+                },
+                {
+                  "value" : 1.0,
+                  "description" : "_type:book, product of:",
+                  "details" : [
+                    {
+                      "value" : 1.0,
+                      "description" : "boost",
+                      "details" : [ ]
+                    },
+                    {
+                      "value" : 1.0,
+                      "description" : "queryNorm",
+                      "details" : [ ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+
+
+#无分析查询示例
+curl -XGET 'localhost:9200/library/book/_search?pretty' -d '{
+	"query":{
+		"term":{
+			"tags":"novel"
+		}
+	}
+}'
+#返回：
+{
+  "took" : 4,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 4,
+    "max_score" : 0.105360515,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "1",
+        "_score" : 0.105360515,
+        "_source" : {
+          "title" : "All Quiet on the Western Front",
+          "otitle" : "Im Westennichts Nenues",
+          "author" : "Erich Maria Remarque",
+          "year" : 1929,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [
+            "novel"
+          ],
+          "copies" : 1,
+          "avaliable" : true
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "2",
+        "_score" : 0.105360515,
+        "_source" : {
+          "title" : "Catch-22",
+          "author" : "Joseph Heller",
+          "year" : 1961,
+          "characters" : [
+            "Jhon Yossarian",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [
+            "novel"
+          ],
+          "copies" : 6,
+          "avaliable" : false
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "5",
+        "_score" : 0.105360515,
+        "_source" : {
+          "title" : "The Sorrows of Young Werther",
+          "author" : "Johann Wolfgang von Goethe",
+          "avaliable" : true,
+          "characters" : [
+            "Werther",
+            "Lotte",
+            "Albert",
+            "Fraulein von B"
+          ],
+          "copies" : 1,
+          "otitle" : "Die Leiden des jungen Werthers",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "classics"
+          ],
+          "year" : 1774,
+          "review" : [
+            {
+              "nickname" : "Anna",
+              "text" : "Could be good, bug not my style",
+              "stars" : 3
+            }
+          ]
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "6",
+        "_score" : 0.105360515,
+        "_source" : {
+          "title" : "The Peasants",
+          "author" : "Widyslaw Reymont",
+          "avaliable" : true,
+          "characters" : [
+            "Maciej Boryna",
+            "Jankiel",
+            "Jagna Paczesiowna",
+            "Antek Boryna"
+          ],
+          "copies" : 4,
+          "otitle" : "Chiopi",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "polish",
+            "classics"
+          ],
+          "year" : 1904,
+          "review" : [
+            {
+              "nickname" : "anonymous",
+              "text" : "awsome book",
+              "stars" : 5
+            },
+            {
+              "nickname" : "Jane",
+              "text" : "Great book, but too long",
+              "stars" : 4
+            },
+            {
+              "nickname" : "Rick",
+              "text" : "Why bother, when you can find it on the internet",
+              "stars" : 3
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+
+
+#无分析查询-在查询时高效处理停用词
+curl -XGET 'localhost:9200/library/book/_search?pretty' -d '{
+	"query":{
+		"common":{
+			"title":{
+				"query":"the western front",
+				"cutoff_frequency":0.1,
+				"low_freq_operator":"and"
+			}
+		}
+	}
+}'
+#返回：
+{
+  "took" : 5,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 2.5447729,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "1",
+        "_score" : 2.5447729,
+        "_source" : {
+          "title" : "All Quiet on the Western Front",
+          "otitle" : "Im Westennichts Nenues",
+          "author" : "Erich Maria Remarque",
+          "year" : 1929,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [
+            "novel"
+          ],
+          "copies" : 1,
+          "avaliable" : true
+        }
+      }
+    ]
+  }
+}
+#如果用下面这个，也可返回，没太懂这块的含义。。。
+#https://www.elastic.co/guide/en/elasticsearch/reference/5.5/query-dsl-common-terms-query.html
+curl -XGET 'localhost:9200/library/book/_search?pretty' -d '{
+	"query":{
+		"bool":{
+			"must":[
+				{
+					"term":{
+						"title":"western"
+					}
+				},
+				{
+					"term":{
+						"title":"front"
+					}
+				}
+			],
+			"should":[
+				{
+					"term":{
+						"title":"the"
+					}
+				}
+			]
+		}
+	}
+}'
+#返回：
+{
+  "took" : 3,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 2.5447729,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "1",
+        "_score" : 2.5447729,
+        "_source" : {
+          "title" : "All Quiet on the Western Front",
+          "otitle" : "Im Westennichts Nenues",
+          "author" : "Erich Maria Remarque",
+          "year" : 1929,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [
+            "novel"
+          ],
+          "copies" : 1,
+          "avaliable" : true
+        }
+      }
+    ]
+  }
+}
+
+
+#全文检索-使用Lucene查询语法
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"query_string":{
+			"query":"+title:sorrows +title:young +author:\"von goethe\" -copies:{5 TO *}"
+		}
+	}
+}'
+#返回：
+{
+  "took" : 11,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 5.18242,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "5",
+        "_score" : 5.18242,
+        "_source" : {
+          "title" : "The Sorrows of Young Werther",
+          "author" : "Johann Wolfgang von Goethe",
+          "avaliable" : true,
+          "characters" : [
+            "Werther",
+            "Lotte",
+            "Albert",
+            "Fraulein von B"
+          ],
+          "copies" : 1,
+          "otitle" : "Die Leiden des jungen Werthers",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "classics"
+          ],
+          "year" : 1774,
+          "review" : [
+            {
+              "nickname" : "Anna",
+              "text" : "Could be good, bug not my style",
+              "stars" : 3
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+
+
+#全文检索-对用户输入容错处理
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"query_string":{
+			"query":"+sorrows +young \"",
+			"default_field":"title"
+		}
+	}
+}'
+#返回：
+{
+  "error" : {
+    "root_cause" : [
+      {
+        "type" : "query_shard_exception",
+        "reason" : "Failed to parse query [+sorrows +young \"]",
+        "index_uuid" : "BGlTHnCKTxi627mWG5d93A",
+        "index" : "library"
+      }
+    ],
+    "type" : "search_phase_execution_exception",
+    "reason" : "all shards failed",
+    "phase" : "query",
+    "grouped" : true,
+    "failed_shards" : [
+      {
+        "shard" : 0,
+        "index" : "library",
+        "node" : "lLX45OxeRDSb3cYu1NtGIw",
+        "reason" : {
+          "type" : "query_shard_exception",
+          "reason" : "Failed to parse query [+sorrows +young \"]",
+          "index_uuid" : "BGlTHnCKTxi627mWG5d93A",
+          "index" : "library",
+          "caused_by" : {
+            "type" : "parse_exception",
+            "reason" : "Cannot parse '+sorrows +young \"': Lexical error at line 1, column 18.  Encountered: <EOF> after : \"\"",
+            "caused_by" : {
+              "type" : "token_mgr_error",
+              "reason" : "Lexical error at line 1, column 18.  Encountered: <EOF> after : \"\""
+            }
+          }
+        }
+      }
+    ]
+  },
+  "status" : 400
+}
+#因用户输入有误，未被正确构建，故用simple_query_string来容错查询
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"simple_query_string":{
+			"query":"+sorrows +young \"",
+			"fields":["title"]
+		}
+	}
+}'
+#返回：
+{
+  "took" : 1,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 2.6246996,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "5",
+        "_score" : 2.6246996,
+        "_source" : {
+          "title" : "The Sorrows of Young Werther",
+          "author" : "Johann Wolfgang von Goethe",
+          "avaliable" : true,
+          "characters" : [
+            "Werther",
+            "Lotte",
+            "Albert",
+            "Fraulein von B"
+          ],
+          "copies" : 1,
+          "otitle" : "Die Leiden des jungen Werthers",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "classics"
+          ],
+          "year" : 1774,
+          "review" : [
+            {
+              "nickname" : "Anna",
+              "text" : "Could be good, bug not my style",
+              "stars" : 3
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+#用validate api验证：https://www.elastic.co/guide/en/elasticsearch/reference/5.5/search-validate.html
+curl -XGET 'localhost:9200/library/_validate/query?explain&pretty' -d '{
+	"query":{
+		"simple_query_string":{
+			"query":"+sorrows +young \"",
+			"fields":["title"]
+		}
+	}
+}'
+#返回：
+{
+  "valid" : true,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "explanations" : [
+    {
+      "index" : "library",
+      "valid" : true,
+      "explanation" : "+title:sorrows +title:young"
+    }
+  ]
+}
+
+
+#模式匹配查询-前缀查询
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"prefix":{
+			"title":"we"
+		}
+	}
+}'
+#返回：
+{
+  "took" : 2,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 2,
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "1",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "All Quiet on the Western Front",
+          "otitle" : "Im Westennichts Nenues",
+          "author" : "Erich Maria Remarque",
+          "year" : 1929,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [
+            "novel"
+          ],
+          "copies" : 1,
+          "avaliable" : true
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "5",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "The Sorrows of Young Werther",
+          "author" : "Johann Wolfgang von Goethe",
+          "avaliable" : true,
+          "characters" : [
+            "Werther",
+            "Lotte",
+            "Albert",
+            "Fraulein von B"
+          ],
+          "copies" : 1,
+          "otitle" : "Die Leiden des jungen Werthers",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "classics"
+          ],
+          "year" : 1774,
+          "review" : [
+            {
+              "nickname" : "Anna",
+              "text" : "Could be good, bug not my style",
+              "stars" : 3
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+#解释下：
+curl -XGET 'localhost:9200/library/_validate/query?explain&pretty' -d '{
+	"query":{
+		"prefix":{
+			"title":"we"
+		}
+	}
+}'
+#返回：
+{
+  "valid" : true,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "explanations" : [
+    {
+      "index" : "library",
+      "valid" : true,
+      "explanation" : "+title:we* #(#*:* -_type:__*)"
+    }
+  ]
+}
+
+
+#模式匹配查询-特定模式
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"regexp":{
+			"characters":"wer..er"
+		}
+	}
+}'
+#返回：
+{
+  "took" : 3,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "5",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "The Sorrows of Young Werther",
+          "author" : "Johann Wolfgang von Goethe",
+          "avaliable" : true,
+          "characters" : [
+            "Werther",
+            "Lotte",
+            "Albert",
+            "Fraulein von B"
+          ],
+          "copies" : 1,
+          "otitle" : "Die Leiden des jungen Werthers",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "classics"
+          ],
+          "year" : 1774,
+          "review" : [
+            {
+              "nickname" : "Anna",
+              "text" : "Could be good, bug not my style",
+              "stars" : 3
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+#解释下：
+curl -XGET 'localhost:9200/library/_validate/query?explain&pretty' -d '{
+	"query":{
+		"regexp":{
+			"characters":"wer..er"
+		}
+	}
+}'
+#返回：
+{
+  "valid" : true,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "explanations" : [
+    {
+      "index" : "library",
+      "valid" : true,
+      "explanation" : "+characters:/wer..er/ #(#*:* -_type:__*)"
+    }
+  ]
+}
+
+
+#支持相似度查询-给定词项近似词
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"fuzzy":{
+			"title":{
+				"value":"crima",
+				"fuzziness":3,
+				"max_expansions":50
+			}
+		}
+	}
+}'
+#返回：
+{
+  "took" : 29,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 1.188168,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "4",
+        "_score" : 1.188168,
+        "_source" : {
+          "title" : "Crime and Punishment",
+          "otitle" : "Crime and Punishment otitle",
+          "author" : "Fyodor Dostoevsky",
+          "year" : 1886,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [ ],
+          "copies" : 0,
+          "avaliable" : true
+        }
+      }
+    ]
+  }
+}
+
+
+#近似查询-找出近似字段的文档
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"fuzzy_like_this_field":{
+			"title":{
+				"like_text":"western front battles",
+				"max_query_terms":5
+			}
+		}
+	}
+}'
+#返回：报错
+{
+  "error" : {
+    "root_cause" : [
+      {
+        "type" : "parsing_exception",
+        "reason" : "no [query] registered for [fuzzy_like_this_field]",
+        "line" : 3,
+        "col" : 25
+      }
+    ],
+    "type" : "parsing_exception",
+    "reason" : "no [query] registered for [fuzzy_like_this_field]",
+    "line" : 3,
+    "col" : 25
+  },
+  "status" : 400
+}
+#已经废弃了：https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-flt-field-query.html
+
+
+#支持打分操作-偏爱新书
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"function_score":{
+			"query":{
+				"match_all":{}
+			},
+			"score_mode":"multiply",
+			"functions":[
+				{
+					"gauss":{
+						"year":{
+							"origin":1936,
+							"scale":1936,
+							"offset":0,
+							"decay":0.5
+						}
+					}
+				}
+			]
+		}
+	}
+}'
+#返回：
+{
+  "took" : 3,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 6,
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "3",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "The Complete Sherlock Holmes",
+          "author" : "Arthur Conan Doyle",
+          "year" : 1936,
+          "characters" : [
+            "Sherlock Holmes",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [ ],
+          "copies" : 0,
+          "avaliable" : false
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "1",
+        "_score" : 0.99999094,
+        "_source" : {
+          "title" : "All Quiet on the Western Front",
+          "otitle" : "Im Westennichts Nenues",
+          "author" : "Erich Maria Remarque",
+          "year" : 1929,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [
+            "novel"
+          ],
+          "copies" : 1,
+          "avaliable" : true
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "2",
+        "_score" : 0.9998844,
+        "_source" : {
+          "title" : "Catch-22",
+          "author" : "Joseph Heller",
+          "year" : 1961,
+          "characters" : [
+            "Jhon Yossarian",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [
+            "novel"
+          ],
+          "copies" : 6,
+          "avaliable" : false
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "6",
+        "_score" : 0.99981064,
+        "_source" : {
+          "title" : "The Peasants",
+          "author" : "Widyslaw Reymont",
+          "avaliable" : true,
+          "characters" : [
+            "Maciej Boryna",
+            "Jankiel",
+            "Jagna Paczesiowna",
+            "Antek Boryna"
+          ],
+          "copies" : 4,
+          "otitle" : "Chiopi",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "polish",
+            "classics"
+          ],
+          "year" : 1904,
+          "review" : [
+            {
+              "nickname" : "anonymous",
+              "text" : "awsome book",
+              "stars" : 5
+            },
+            {
+              "nickname" : "Jane",
+              "text" : "Great book, but too long",
+              "stars" : 4
+            },
+            {
+              "nickname" : "Rick",
+              "text" : "Why bother, when you can find it on the internet",
+              "stars" : 3
+            }
+          ]
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "4",
+        "_score" : 0.99953777,
+        "_source" : {
+          "title" : "Crime and Punishment",
+          "otitle" : "Crime and Punishment otitle",
+          "author" : "Fyodor Dostoevsky",
+          "year" : 1886,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [ ],
+          "copies" : 0,
+          "avaliable" : true
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "5",
+        "_score" : 0.9951584,
+        "_source" : {
+          "title" : "The Sorrows of Young Werther",
+          "author" : "Johann Wolfgang von Goethe",
+          "avaliable" : true,
+          "characters" : [
+            "Werther",
+            "Lotte",
+            "Albert",
+            "Fraulein von B"
+          ],
+          "copies" : 1,
+          "otitle" : "Die Leiden des jungen Werthers",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "classics"
+          ],
+          "year" : 1774,
+          "review" : [
+            {
+              "nickname" : "Anna",
+              "text" : "Could be good, bug not my style",
+              "stars" : 3
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+
+
+#支持打分操作-对拥有某些值得书籍扣分
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"boosting":{
+			"positive":{
+				"match_all":{}
+			},
+			"negative":{
+				"term":{
+					"avaliable":false
+				}
+			},
+			"negative_boost":0.2
+		}
+	}
+}'
+#返回：
+{
+  "took" : 15,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 6,
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "1",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "All Quiet on the Western Front",
+          "otitle" : "Im Westennichts Nenues",
+          "author" : "Erich Maria Remarque",
+          "year" : 1929,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [
+            "novel"
+          ],
+          "copies" : 1,
+          "avaliable" : true
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "4",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "Crime and Punishment",
+          "otitle" : "Crime and Punishment otitle",
+          "author" : "Fyodor Dostoevsky",
+          "year" : 1886,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [ ],
+          "copies" : 0,
+          "avaliable" : true
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "5",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "The Sorrows of Young Werther",
+          "author" : "Johann Wolfgang von Goethe",
+          "avaliable" : true,
+          "characters" : [
+            "Werther",
+            "Lotte",
+            "Albert",
+            "Fraulein von B"
+          ],
+          "copies" : 1,
+          "otitle" : "Die Leiden des jungen Werthers",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "classics"
+          ],
+          "year" : 1774,
+          "review" : [
+            {
+              "nickname" : "Anna",
+              "text" : "Could be good, bug not my style",
+              "stars" : 3
+            }
+          ]
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "6",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "The Peasants",
+          "author" : "Widyslaw Reymont",
+          "avaliable" : true,
+          "characters" : [
+            "Maciej Boryna",
+            "Jankiel",
+            "Jagna Paczesiowna",
+            "Antek Boryna"
+          ],
+          "copies" : 4,
+          "otitle" : "Chiopi",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "polish",
+            "classics"
+          ],
+          "year" : 1904,
+          "review" : [
+            {
+              "nickname" : "anonymous",
+              "text" : "awsome book",
+              "stars" : 5
+            },
+            {
+              "nickname" : "Jane",
+              "text" : "Great book, but too long",
+              "stars" : 4
+            },
+            {
+              "nickname" : "Rick",
+              "text" : "Why bother, when you can find it on the internet",
+              "stars" : 3
+            }
+          ]
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "2",
+        "_score" : 0.2,
+        "_source" : {
+          "title" : "Catch-22",
+          "author" : "Joseph Heller",
+          "year" : 1961,
+          "characters" : [
+            "Jhon Yossarian",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [
+            "novel"
+          ],
+          "copies" : 6,
+          "avaliable" : false
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "3",
+        "_score" : 0.2,
+        "_source" : {
+          "title" : "The Complete Sherlock Holmes",
+          "author" : "Arthur Conan Doyle",
+          "year" : 1936,
+          "characters" : [
+            "Sherlock Holmes",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [ ],
+          "copies" : 0,
+          "avaliable" : false
+        }
+      }
+    ]
+  }
+}
+
+
+#位置敏感查询-匹配短语
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"match_phrase":{
+			"otitle":"leiden des jungen"
+		}
+	}
+}'
+#返回：
+{
+  "took" : 1,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 2.8929203,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "5",
+        "_score" : 2.8929203,
+        "_source" : {
+          "title" : "The Sorrows of Young Werther",
+          "author" : "Johann Wolfgang von Goethe",
+          "avaliable" : true,
+          "characters" : [
+            "Werther",
+            "Lotte",
+            "Albert",
+            "Fraulein von B"
+          ],
+          "copies" : 1,
+          "otitle" : "Die Leiden des jungen Werthers",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "classics"
+          ],
+          "year" : 1774,
+          "review" : [
+            {
+              "nickname" : "Anna",
+              "text" : "Could be good, bug not my style",
+              "stars" : 3
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+
+
+#位置敏感查询-处处可见范围查询
+curl -XGET 'localhost:9200/library/_search?explain&pretty' -d '{
+	"query":{
+		"span_near":{
+			"clauses":[
+				{
+					"span_near":{
+						"clauses":[
+							{
+								"span_term":{
+									"otitle":"die"
+								}
+							},
+							{
+								"span_near":{
+									"clauses":[
+										{
+											"span_term":{
+												"otitle":"des"
+											}
+										},
+										{
+											"span_term":{
+												"otitle":"jungen"
+											}
+										}
+									],
+									"slop":0,
+									"in_oder":true
+								}
+							}
+						],
+						"slop":2,
+						"in_oder":false
+					}
+				},
+				{
+					"span_term":{
+						"otitle":"werthers"
+					}
+				}
+			],
+			"slop":0,
+			"in_order":false
+		}
+	}
+}'
+#5.5.0 span_near不支持in_order，去掉in_order：
+curl -XGET 'localhost:9200/library/_search?explain&pretty' -d '{
+	"query":{
+		"span_near":{
+			"clauses":[
+				{
+					"span_near":{
+						"clauses":[
+							{
+								"span_term":{
+									"otitle":"die"
+								}
+							},
+							{
+								"span_near":{
+									"clauses":[
+										{
+											"span_term":{
+												"otitle":"des"
+											}
+										},
+										{
+											"span_term":{
+												"otitle":"jungen"
+											}
+										}
+									],
+									"slop":0
+								}
+							}
+						],
+						"slop":2
+					}
+				},
+				{
+					"span_term":{
+						"otitle":"werthers"
+					}
+				}
+			],
+			"slop":0
+		}
+	}
+}'
+#返回：
+{
+  "took" : 26,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 3.857227,
+    "hits" : [
+      {
+        "_shard" : "[library][0]",
+        "_node" : "lLX45OxeRDSb3cYu1NtGIw",
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "5",
+        "_score" : 3.857227,
+        "_source" : {
+          "title" : "The Sorrows of Young Werther",
+          "author" : "Johann Wolfgang von Goethe",
+          "avaliable" : true,
+          "characters" : [
+            "Werther",
+            "Lotte",
+            "Albert",
+            "Fraulein von B"
+          ],
+          "copies" : 1,
+          "otitle" : "Die Leiden des jungen Werthers",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "classics"
+          ],
+          "year" : 1774,
+          "review" : [
+            {
+              "nickname" : "Anna",
+              "text" : "Could be good, bug not my style",
+              "stars" : 3
+            }
+          ]
+        },
+        "_explanation" : {
+          "value" : 3.8572268,
+          "description" : "sum of:",
+          "details" : [
+            {
+              "value" : 3.8572268,
+              "description" : "weight(spanNear([spanNear([otitle:die, spanNear([otitle:des, otitle:jungen], 0, true)], 2, true), otitle:werthers], 0, true) in 1) [PerFieldSimilarity], result of:",
+              "details" : [
+                {
+                  "value" : 3.8572268,
+                  "description" : "score(doc=1,freq=1.0 = phraseFreq=1.0\n), product of:",
+                  "details" : [
+                    {
+                      "value" : 4.8158913,
+                      "description" : "idf(), sum of:",
+                      "details" : [
+                        {
+                          "value" : 1.2039728,
+                          "description" : "idf, computed as log(1 + (docCount - docFreq + 0.5) / (docFreq + 0.5)) from:",
+                          "details" : [
+                            {
+                              "value" : 1.0,
+                              "description" : "docFreq",
+                              "details" : [ ]
+                            },
+                            {
+                              "value" : 4.0,
+                              "description" : "docCount",
+                              "details" : [ ]
+                            }
+                          ]
+                        },
+                        {
+                          "value" : 1.2039728,
+                          "description" : "idf, computed as log(1 + (docCount - docFreq + 0.5) / (docFreq + 0.5)) from:",
+                          "details" : [
+                            {
+                              "value" : 1.0,
+                              "description" : "docFreq",
+                              "details" : [ ]
+                            },
+                            {
+                              "value" : 4.0,
+                              "description" : "docCount",
+                              "details" : [ ]
+                            }
+                          ]
+                        },
+                        {
+                          "value" : 1.2039728,
+                          "description" : "idf, computed as log(1 + (docCount - docFreq + 0.5) / (docFreq + 0.5)) from:",
+                          "details" : [
+                            {
+                              "value" : 1.0,
+                              "description" : "docFreq",
+                              "details" : [ ]
+                            },
+                            {
+                              "value" : 4.0,
+                              "description" : "docCount",
+                              "details" : [ ]
+                            }
+                          ]
+                        },
+                        {
+                          "value" : 1.2039728,
+                          "description" : "idf, computed as log(1 + (docCount - docFreq + 0.5) / (docFreq + 0.5)) from:",
+                          "details" : [
+                            {
+                              "value" : 1.0,
+                              "description" : "docFreq",
+                              "details" : [ ]
+                            },
+                            {
+                              "value" : 4.0,
+                              "description" : "docCount",
+                              "details" : [ ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "value" : 0.8009373,
+                      "description" : "tfNorm, computed as (freq * (k1 + 1)) / (freq + k1 * (1 - b + b * fieldLength / avgFieldLength)) from:",
+                      "details" : [
+                        {
+                          "value" : 1.0,
+                          "description" : "phraseFreq=1.0",
+                          "details" : [ ]
+                        },
+                        {
+                          "value" : 1.2,
+                          "description" : "parameter k1",
+                          "details" : [ ]
+                        },
+                        {
+                          "value" : 0.75,
+                          "description" : "parameter b",
+                          "details" : [ ]
+                        },
+                        {
+                          "value" : 3.25,
+                          "description" : "avgFieldLength",
+                          "details" : [ ]
+                        },
+                        {
+                          "value" : 5.2244897,
+                          "description" : "fieldLength",
+                          "details" : [ ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "value" : 0.0,
+              "description" : "match on required clause, product of:",
+              "details" : [
+                {
+                  "value" : 0.0,
+                  "description" : "# clause",
+                  "details" : [ ]
+                },
+                {
+                  "value" : 1.0,
+                  "description" : "#*:* -_type:__*, product of:",
+                  "details" : [
+                    {
+                      "value" : 1.0,
+                      "description" : "boost",
+                      "details" : [ ]
+                    },
+                    {
+                      "value" : 1.0,
+                      "description" : "queryNorm",
+                      "details" : [ ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+
+
+#结构敏感查询-父子文档-返回包含某个嵌套子文档的父文档
+curl -XGET 'localhost:9200/library/_search?explain&pretty' -d '{
+	"query":{
+		"nested":{
+			"path":"review",
+			"query":{
+				"range":{
+					"stars":{
+						"gte":4
+					}
+				}
+			}
+		}
+	}
+}'
+#返回：
+{
+  "took" : 1,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 0,
+    "max_score" : null,
+    "hits" : [ ]
+  }
+}
+#更改下：https://www.elastic.co/guide/en/elasticsearch/reference/5.5/query-dsl-nested-query.html
+curl -XGET 'localhost:9200/library/_search?explain&pretty' -d '{
+	"query":{
+		"nested":{
+			"path":"review",
+			"score_mode":"avg",
+			"query":{
+				"range":{
+					"review.stars":{
+						"gte":4
+					}
+				}
+			}
+		}
+	}
+}'
+#返回：
+{
+  "took" : 2,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_shard" : "[library][0]",
+        "_node" : "lLX45OxeRDSb3cYu1NtGIw",
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "6",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "The Peasants",
+          "author" : "Widyslaw Reymont",
+          "avaliable" : true,
+          "characters" : [
+            "Maciej Boryna",
+            "Jankiel",
+            "Jagna Paczesiowna",
+            "Antek Boryna"
+          ],
+          "copies" : 4,
+          "otitle" : "Chiopi",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "polish",
+            "classics"
+          ],
+          "year" : 1904,
+          "review" : [
+            {
+              "nickname" : "anonymous",
+              "text" : "awsome book",
+              "stars" : 5
+            },
+            {
+              "nickname" : "Jane",
+              "text" : "Great book, but too long",
+              "stars" : 4
+            },
+            {
+              "nickname" : "Rick",
+              "text" : "Why bother, when you can find it on the internet",
+              "stars" : 3
+            }
+          ]
+        },
+        "_explanation" : {
+          "value" : 1.0,
+          "description" : "Score based on 2 child docs in range from 6 to 8, best match:",
+          "details" : [
+            {
+              "value" : 1.0,
+              "description" : "review.stars:[4 TO 2147483647], product of:",
+              "details" : [
+                {
+                  "value" : 1.0,
+                  "description" : "boost",
+                  "details" : [ ]
+                },
+                {
+                  "value" : 1.0,
+                  "description" : "queryNorm",
+                  "details" : [ ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+
+
+#结构敏感-父子文档-嵌套子文档的得分影响父文档得分
+curl -XGET 'localhost:9200/library/_search?explain&pretty' -d '{
+	"query":{
+		"nested":{
+			"path":"review",
+			"score_mode":"max",
+			"query":{
+				"function_score":{
+					"query":{
+						"match_all":{}
+					},
+					"score_mode":"max",
+					"boost_mode":"replace",
+					"field_value_factor":{
+						"field":"review.stars",
+						"factor":1,
+						"modifier":"none"
+					}
+				}
+			}
+		}
+	}
+}'
+#返回：
+{
+  "took" : 4,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 2,
+    "max_score" : 5.0,
+    "hits" : [
+      {
+        "_shard" : "[library][0]",
+        "_node" : "lLX45OxeRDSb3cYu1NtGIw",
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "6",
+        "_score" : 5.0,
+        "_source" : {
+          "title" : "The Peasants",
+          "author" : "Widyslaw Reymont",
+          "avaliable" : true,
+          "characters" : [
+            "Maciej Boryna",
+            "Jankiel",
+            "Jagna Paczesiowna",
+            "Antek Boryna"
+          ],
+          "copies" : 4,
+          "otitle" : "Chiopi",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "polish",
+            "classics"
+          ],
+          "year" : 1904,
+          "review" : [
+            {
+              "nickname" : "anonymous",
+              "text" : "awsome book",
+              "stars" : 5
+            },
+            {
+              "nickname" : "Jane",
+              "text" : "Great book, but too long",
+              "stars" : 4
+            },
+            {
+              "nickname" : "Rick",
+              "text" : "Why bother, when you can find it on the internet",
+              "stars" : 3
+            }
+          ]
+        },
+        "_explanation" : {
+          "value" : 5.0,
+          "description" : "Score based on 3 child docs in range from 6 to 8, best match:",
+          "details" : [
+            {
+              "value" : 5.0,
+              "description" : "sum of:",
+              "details" : [
+                {
+                  "value" : 5.0,
+                  "description" : "min of:",
+                  "details" : [
+                    {
+                      "value" : 5.0,
+                      "description" : "field value function: none(doc['review.stars'].value * factor=1.0)",
+                      "details" : [ ]
+                    },
+                    {
+                      "value" : 3.4028235E38,
+                      "description" : "maxBoost",
+                      "details" : [ ]
+                    }
+                  ]
+                },
+                {
+                  "value" : 0.0,
+                  "description" : "match on required clause, product of:",
+                  "details" : [
+                    {
+                      "value" : 0.0,
+                      "description" : "# clause",
+                      "details" : [ ]
+                    },
+                    {
+                      "value" : 1.0,
+                      "description" : "_type:__review, product of:",
+                      "details" : [
+                        {
+                          "value" : 1.0,
+                          "description" : "boost",
+                          "details" : [ ]
+                        },
+                        {
+                          "value" : 1.0,
+                          "description" : "queryNorm",
+                          "details" : [ ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "_shard" : "[library][0]",
+        "_node" : "lLX45OxeRDSb3cYu1NtGIw",
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "5",
+        "_score" : 3.0,
+        "_source" : {
+          "title" : "The Sorrows of Young Werther",
+          "author" : "Johann Wolfgang von Goethe",
+          "avaliable" : true,
+          "characters" : [
+            "Werther",
+            "Lotte",
+            "Albert",
+            "Fraulein von B"
+          ],
+          "copies" : 1,
+          "otitle" : "Die Leiden des jungen Werthers",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "classics"
+          ],
+          "year" : 1774,
+          "review" : [
+            {
+              "nickname" : "Anna",
+              "text" : "Could be good, bug not my style",
+              "stars" : 3
+            }
+          ]
+        },
+        "_explanation" : {
+          "value" : 3.0,
+          "description" : "Score based on 1 child docs in range from 4 to 4, best match:",
+          "details" : [
+            {
+              "value" : 3.0,
+              "description" : "sum of:",
+              "details" : [
+                {
+                  "value" : 3.0,
+                  "description" : "min of:",
+                  "details" : [
+                    {
+                      "value" : 3.0,
+                      "description" : "field value function: none(doc['review.stars'].value * factor=1.0)",
+                      "details" : [ ]
+                    },
+                    {
+                      "value" : 3.4028235E38,
+                      "description" : "maxBoost",
+                      "details" : [ ]
+                    }
+                  ]
+                },
+                {
+                  "value" : 0.0,
+                  "description" : "match on required clause, product of:",
+                  "details" : [
+                    {
+                      "value" : 0.0,
+                      "description" : "# clause",
+                      "details" : [ ]
+                    },
+                    {
+                      "value" : 1.0,
+                      "description" : "_type:__review, product of:",
+                      "details" : [
+                        {
+                          "value" : 1.0,
+                          "description" : "boost",
+                          "details" : [ ]
+                        },
+                        {
+                          "value" : 1.0,
+                          "description" : "queryNorm",
+                          "details" : [ ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
