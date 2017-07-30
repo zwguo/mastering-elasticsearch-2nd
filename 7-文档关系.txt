@@ -1,0 +1,724 @@
+#p95 文档关系，父子文档等
+#创建测试索引，存放父子关系
+curl -XPUT 'localhost:9200/rel_natural' -d '{
+	"settings":{
+		"number_of_replicas":0
+	}
+}'
+#返回：
+{"acknowledged":true,"shards_acknowledged":true}
+#创建mapping
+curl -XPUT 'localhost:9200/rel_natural/books/_mapping?pretty' -d '{
+	"books":{
+		"properties":{
+			"title":{
+				"type":"string"
+			},
+			"quantity":{
+				"type":"integer"
+			},
+			"edition":{
+				"type":"object",
+				"properties":{
+					"isbn":{
+						"type":"string",
+						"index":"not_analyzed"
+					},
+					"circulation":{
+						"type":"integer"
+					}
+				}
+			}
+		}
+	}
+}'
+#返回：
+{
+  "acknowledged" : true
+}
+#添加数据
+{
+	"title":"Title",
+	"quantity":100,
+	"edition":[
+		{
+			"isbn":"1234567890",
+			"circulation":50000
+		},
+		{
+			"isbn":"9876543210",
+			"circulation":2000
+		}
+	]
+}
+curl -XPUT 'localhost:9200/rel_natural/books/1' -d @tempdata.json
+#返回：
+{"_index":"rel_natural","_type":"books","_id":"1","_version":1,"result":"created","_shards":{"total":1,"successful":1,"failed":0},"created":true}
+
+
+#查询一下
+curl -XGET 'localhost:9200/rel_natural/books/1?pretty'
+#返回：
+{
+  "_index" : "rel_natural",
+  "_type" : "books",
+  "_id" : "1",
+  "_version" : 1,
+  "found" : true,
+  "_source" : {
+    "title" : "Title",
+    "quantity" : 100,
+    "edition" : [
+      {
+        "isbn" : "1234567890",
+        "circulation" : 50000
+      },
+      {
+        "isbn" : "9876543210",
+        "circulation" : 2000
+      }
+    ]
+  }
+}
+
+
+#此时查询isbn为1234567890且circulation为2000的图书，应该没有任何返回，但是却有返回
+curl -XGET 'localhost:9200/rel_natural/_search?pretty' -d '{
+	"query":{
+		"bool":{
+			"must":[
+				{
+					"term":{
+						"edition.isbn":"1234567890"
+					}
+				},
+				{
+					"term":{
+						"edition.circulation" : 2000
+					}
+				}
+			]
+		}
+	}
+}'
+#返回：
+{
+  "took" : 1,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 1.287682,
+    "hits" : [
+      {
+        "_index" : "rel_natural",
+        "_type" : "books",
+        "_id" : "1",
+        "_score" : 1.287682,
+        "_source" : {
+          "title" : "Title",
+          "quantity" : 100,
+          "edition" : [
+            {
+              "isbn" : "1234567890",
+              "circulation" : 50000
+            },
+            {
+              "isbn" : "9876543210",
+              "circulation" : 2000
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+
+
+#使用嵌套类型
+curl -XPUT localhost:9200/rel_nested -d '{ "settings" : { "number_of_replicas" : 0 } }'
+#返回：
+{"acknowledged":true,"shards_acknowledged":true}
+#创建mapping-nested
+curl -XPOST localhost:9200/rel_nested/book/_mapping?pretty -d '{
+	"book" : {
+		"properties" : {
+			"title" : { "type": "string" },
+			"quantity" : { "type": "integer" },
+			"edition" : {
+				"type" : "nested",
+				"properties" : {
+					"isbn" : { "type" : "string", "index" : "not_analyzed" },
+					"circulation" : { "type" : "integer" }
+				}
+			}
+		}
+	}
+}'
+#返回：
+{
+  "acknowledged" : true
+}
+#添加数据
+curl -XPUT 'localhost:9200/rel_nested/book/1' -d @tempdata.json
+#返回：
+{"_index":"rel_nested","_type":"book","_id":"1","_version":1,"result":"created","_shards":{"total":1,"successful":1,"failed":0},"created":true}
+
+
+#再次查询
+curl -XGET 'localhost:9200/rel_nested/_search?pretty' -d '{
+	"query":{
+		"bool":{
+			"must":[
+				{
+					"term":{
+						"edition.isbn":"1234567890"
+					}
+				},
+				{
+					"term":{
+						"edition.circulation" : 2000
+					}
+				}
+			]
+		}
+	}
+}'
+#返回：
+{
+  "took" : 3,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 0,
+    "max_score" : null,
+    "hits" : [ ]
+  }
+}
+#如果更改下查询，则有返回：
+curl -XGET 'localhost:9200/rel_nested/_search?pretty' -d '{
+	"query":{
+		"nested":{
+			"path":"edition",
+			"query":{
+				"bool":{
+					"must":[
+						{
+							"term":{
+								"edition.isbn":"1234567890"
+							}
+						},
+						{
+							"term":{
+								"edition.circulation" : 50000
+							}
+						}
+					]
+				}
+			}
+		}
+	}
+}'
+#返回：
+{
+  "took" : 2,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 1.6931472,
+    "hits" : [
+      {
+        "_index" : "rel_nested",
+        "_type" : "book",
+        "_id" : "1",
+        "_score" : 1.6931472,
+        "_source" : {
+          "title" : "Title",
+          "quantity" : 100,
+          "edition" : [
+            {
+              "isbn" : "1234567890",
+              "circulation" : 50000
+            },
+            {
+              "isbn" : "9876543210",
+              "circulation" : 2000
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+#而如果更改circulation为2000，则不会返回：
+curl -XGET 'localhost:9200/rel_nested/_search?pretty' -d '{
+	"query":{
+		"nested":{
+			"path":"edition",
+			"query":{
+				"bool":{
+					"must":[
+						{
+							"term":{
+								"edition.isbn":"1234567890"
+							}
+						},
+						{
+							"term":{
+								"edition.circulation" : 2000
+							}
+						}
+					]
+				}
+			}
+		}
+	}
+}'
+#返回：
+{
+  "took" : 2,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 0,
+    "max_score" : null,
+    "hits" : [ ]
+  }
+}
+
+
+#父子文档
+#创建index-父
+curl -XPUT localhost:9200/rel_pch_m -d '{ "settings" : { "number_of_replicas" : 0, "number_of_shards" : 1 } }'
+#返回：
+{"acknowledged":true,"shards_acknowledged":true}
+#创建index-子
+curl -XPUT localhost:9200/rel_pch_s -d '{ "settings" : { "number_of_replicas" : 0, "number_of_shards" : 1 } }'
+#返回：
+{"acknowledged":true,"shards_acknowledged":true}
+#创建mapping-父
+curl -XPOST localhost:9200/rel_pch_m/cparent/_mapping?pretty -d '{
+	"cparent" : {
+		"properties" : {
+			"title" : { "type": "string" },
+			"quantity" : { "type": "integer" }
+		}
+	}
+}'
+#返回：
+{
+  "acknowledged" : true
+}
+#创建mapping-子
+curl -XPOST localhost:9200/rel_pch_s/cson/_mapping?pretty -d '{
+	"cson" : {
+		"_parent" : {
+			"type" : "cparent"
+		},
+		"properties" : {
+			"isbn" : { "type" : "string", "index" : "not_analyzed" },
+			"circulation" : { "type" : "integer" }
+		}
+	}
+}'
+#返回：
+{
+  "acknowledged" : true
+}
+#设置测试数据
+{"index": {"_index": "rel_pch_m", "_type": "cparent", "_id": "1"}}
+{"title" : "Doc no 1", "quantity" : 101}
+{"index": {"_index": "rel_pch_s", "_type": "cson", "_id": "1", "_parent": "1"}}
+{"isbn" : "no1", "circulation" : 501}
+
+curl -XPOST 'localhost:9200/_bulk?pretty' --data-binary @tempdata.json
+#返回：
+{
+  "took" : 10,
+  "errors" : false,
+  "items" : [
+    {
+      "index" : {
+        "_index" : "rel_pch_m",
+        "_type" : "cparent",
+        "_id" : "1",
+        "_version" : 1,
+        "result" : "created",
+        "_shards" : {
+          "total" : 1,
+          "successful" : 1,
+          "failed" : 0
+        },
+        "created" : true,
+        "status" : 201
+      }
+    },
+    {
+      "index" : {
+        "_index" : "rel_pch_s",
+        "_type" : "cson",
+        "_id" : "1",
+        "_version" : 1,
+        "result" : "created",
+        "_shards" : {
+          "total" : 1,
+          "successful" : 1,
+          "failed" : 0
+        },
+        "created" : true,
+        "status" : 201
+      }
+    }
+  ]
+}
+
+
+#查询父文档
+curl -XGET 'localhost:9200/rel_pch_m/_search?pretty' -d '{
+	"query":{
+		"match_all":{}
+	}
+}'
+#返回：
+{
+  "took" : 0,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "rel_pch_m",
+        "_type" : "cparent",
+        "_id" : "1",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "Doc no 1",
+          "quantity" : 101
+        }
+      }
+    ]
+  }
+}
+
+
+#查询父文档-子文档-parentid查询
+curl -XGET 'localhost:9200/rel_pch_s/_search?pretty' -d '{
+	"query":{
+		"parent_id":{
+			"type":"cson",
+			"id":"1"
+		}
+	}
+}'
+#返回：
+{
+  "took" : 1,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "rel_pch_s",
+        "_type" : "cson",
+        "_id" : "1",
+        "_score" : 1.0,
+        "_routing" : "1",
+        "_parent" : "1",
+        "_source" : {
+          "isbn" : "no1",
+          "circulation" : 501
+        }
+      }
+    ]
+  }
+}
+
+
+#查询父文档-子文档-has_prent查询
+curl -XGET 'localhost:9200/rel_pch_s/_search?pretty' -d '{
+	"query":{
+		"has_parent":{
+			"parent_type":"cparent",
+			"query":{
+				"term":{
+					"_id":"1"
+				}
+			}
+		}
+	}
+}'
+#返回报错：
+{
+  "error" : {
+    "root_cause" : [
+      {
+        "type" : "query_shard_exception",
+        "reason" : "[has_parent] query configured 'parent_type' [cparent] is not a valid type",
+        "index_uuid" : "CtxJsAOgQ3yduul3jhFG6w",
+        "index" : "rel_pch_s"
+      }
+    ],
+    "type" : "search_phase_execution_exception",
+    "reason" : "all shards failed",
+    "phase" : "query",
+    "grouped" : true,
+    "failed_shards" : [
+      {
+        "shard" : 0,
+        "index" : "rel_pch_s",
+        "node" : "lLX45OxeRDSb3cYu1NtGIw",
+        "reason" : {
+          "type" : "query_shard_exception",
+          "reason" : "[has_parent] query configured 'parent_type' [cparent] is not a valid type",
+          "index_uuid" : "CtxJsAOgQ3yduul3jhFG6w",
+          "index" : "rel_pch_s"
+        }
+      }
+    ]
+  },
+  "status" : 400
+}
+#应该在同一个index中，另外创建type时必须在同一个：https://discuss.elastic.co/t/adding-child-types-in-2-0/33267
+curl -XPUT localhost:9200/rel_pch_m12 -d '{
+	"mappings":{
+		"cparent12" : {
+			"properties" : {
+				"title" : { "type": "string" },
+				"quantity" : { "type": "integer" }
+			}
+		},
+		"cson12" : {
+			"_parent" : {
+				"type" : "cparent12"
+			},
+			"properties" : {
+				"isbn" : { "type" : "string", "index" : "not_analyzed" },
+				"circulation" : { "type" : "integer" }
+			}
+		}
+	}
+}'
+#返回：
+{"acknowledged":true,"shards_acknowledged":true}
+#存放同样的数据
+{"index": {"_index": "rel_pch_m12", "_type": "cparent12", "_id": "1"}}
+{"title" : "Doc no 1", "quantity" : 101}
+{"index": {"_index": "rel_pch_m12", "_type": "cson12", "_id": "1", "_parent": "1"}}
+{"isbn" : "no1", "circulation" : 501}
+#返回：
+{
+  "took" : 7,
+  "errors" : false,
+  "items" : [
+    {
+      "index" : {
+        "_index" : "rel_pch_m12",
+        "_type" : "cparent12",
+        "_id" : "1",
+        "_version" : 1,
+        "result" : "created",
+        "_shards" : {
+          "total" : 2,
+          "successful" : 1,
+          "failed" : 0
+        },
+        "created" : true,
+        "status" : 201
+      }
+    },
+    {
+      "index" : {
+        "_index" : "rel_pch_m12",
+        "_type" : "cson12",
+        "_id" : "1",
+        "_version" : 1,
+        "result" : "created",
+        "_shards" : {
+          "total" : 2,
+          "successful" : 1,
+          "failed" : 0
+        },
+        "created" : true,
+        "status" : 201
+      }
+    }
+  ]
+}
+#再次has_parent查询
+curl -XGET 'localhost:9200/rel_pch_m12/_search?pretty' -d '{
+	"query":{
+		"has_parent":{
+			"parent_type":"cparent12",
+			"query":{
+				"term":{
+					"_id":"1"
+				}
+			}
+		}
+	}
+}'
+#返回：
+{
+  "took" : 34,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "rel_pch_m12",
+        "_type" : "cson12",
+        "_id" : "1",
+        "_score" : 1.0,
+        "_routing" : "1",
+        "_parent" : "1",
+        "_source" : {
+          "isbn" : "no1",
+          "circulation" : 501
+        }
+      }
+    ]
+  }
+}
+
+
+#父子文档-has_child查询
+curl -XGET 'localhost:9200/rel_pch_m12/_search?pretty' -d '{
+	"query":{
+		"has_child":{
+			"type":"cson12",
+			"query":{
+				"term":{
+					"_id":"1"
+				}
+			}
+		}
+	}
+}'
+#返回：
+{
+  "took" : 4,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "rel_pch_m12",
+        "_type" : "cparent12",
+        "_id" : "1",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "Doc no 1",
+          "quantity" : 101
+        }
+      }
+    ]
+  }
+}
+
+
+#父子关系-聚合
+curl -XGET 'localhost:9200/rel_pch_m12/cparent12/_search?pretty' -d '{
+	"size":0,
+	"aggs":{
+		"aggs_cparent":{
+			"terms":{
+				"field":"quantity"
+			},
+			"aggs":{
+				"aggs_childs":{
+					"children":{
+						"type":"cson12"
+					},
+					"aggs":{
+						"aggs_child_isbn":{
+							"terms":{
+								"field":"isbn.keyword"
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}'
+#返回：
+{
+  "took" : 21,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 0.0,
+    "hits" : [ ]
+  },
+  "aggregations" : {
+    "aggs_cparent" : {
+      "doc_count_error_upper_bound" : 0,
+      "sum_other_doc_count" : 0,
+      "buckets" : [
+        {
+          "key" : 101,
+          "doc_count" : 1,
+          "aggs_childs" : {
+            "doc_count" : 1,
+            "aggs_child_isbn" : {
+              "doc_count_error_upper_bound" : 0,
+              "sum_other_doc_count" : 0,
+              "buckets" : [ ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
+
+
+
+

@@ -1,0 +1,19 @@
+{
+	"query":{
+		"match_all":{}
+	},
+	"rescore":{
+		"query":{
+			"rescore_query":{
+				"function_score":{
+					"query":{
+						"match_all":{}
+					},
+					"script_score":{
+						"script":"doc[\"year\"].value"
+					}
+				}
+			}
+		}
+	}
+}

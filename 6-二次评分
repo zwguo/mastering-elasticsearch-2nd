@@ -1,0 +1,1985 @@
+#p66 查询二次评分
+#简单的match_all返回全部，但是评分都是1.0
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"match_all":{}
+	}
+}'
+#返回：
+{
+  "took" : 5,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 6,
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "1",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "All Quiet on the Western Front",
+          "otitle" : "Im Westennichts Nenues",
+          "author" : "Erich Maria Remarque",
+          "year" : 1929,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [
+            "novel"
+          ],
+          "copies" : 1,
+          "avaliable" : true
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "2",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "Catch-22",
+          "author" : "Joseph Heller",
+          "year" : 1961,
+          "characters" : [
+            "Jhon Yossarian",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [
+            "novel"
+          ],
+          "copies" : 6,
+          "avaliable" : false
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "3",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "The Complete Sherlock Holmes",
+          "author" : "Arthur Conan Doyle",
+          "year" : 1936,
+          "characters" : [
+            "Sherlock Holmes",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [ ],
+          "copies" : 0,
+          "avaliable" : false
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "4",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "Crime and Punishment",
+          "otitle" : "Crime and Punishment otitle",
+          "author" : "Fyodor Dostoevsky",
+          "year" : 1886,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [ ],
+          "copies" : 0,
+          "avaliable" : true
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "5",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "The Sorrows of Young Werther",
+          "author" : "Johann Wolfgang von Goethe",
+          "avaliable" : true,
+          "characters" : [
+            "Werther",
+            "Lotte",
+            "Albert",
+            "Fraulein von B"
+          ],
+          "copies" : 1,
+          "otitle" : "Die Leiden des jungen Werthers",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "classics"
+          ],
+          "year" : 1774,
+          "review" : [
+            {
+              "nickname" : "Anna",
+              "text" : "Could be good, bug not my style",
+              "stars" : 3
+            }
+          ]
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "6",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "The Peasants",
+          "author" : "Widyslaw Reymont",
+          "avaliable" : true,
+          "characters" : [
+            "Maciej Boryna",
+            "Jankiel",
+            "Jagna Paczesiowna",
+            "Antek Boryna"
+          ],
+          "copies" : 4,
+          "otitle" : "Chiopi",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "polish",
+            "classics"
+          ],
+          "year" : 1904,
+          "review" : [
+            {
+              "nickname" : "anonymous",
+              "text" : "awsome book",
+              "stars" : 5
+            },
+            {
+              "nickname" : "Jane",
+              "text" : "Great book, but too long",
+              "stars" : 4
+            },
+            {
+              "nickname" : "Rick",
+              "text" : "Why bother, when you can find it on the internet",
+              "stars" : 3
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+
+
+#利用二次评分改写，返回year作为评分，注意curl中的单引号要换成双引号，并转义
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"match_all":{}
+	},
+	"rescore":{
+		"query":{
+			"rescore_query":{
+				"function_score":{
+					"query":{
+						"match_all":{}
+					},
+					"script_score":{
+						"script":"doc[\"year\"].value"
+					}
+				}
+			}
+		}
+	}
+}'
+#返回：
+{
+  "took" : 88,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 6,
+    "max_score" : 1962.0,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "2",
+        "_score" : 1962.0,
+        "_source" : {
+          "title" : "Catch-22",
+          "author" : "Joseph Heller",
+          "year" : 1961,
+          "characters" : [
+            "Jhon Yossarian",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [
+            "novel"
+          ],
+          "copies" : 6,
+          "avaliable" : false
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "3",
+        "_score" : 1937.0,
+        "_source" : {
+          "title" : "The Complete Sherlock Holmes",
+          "author" : "Arthur Conan Doyle",
+          "year" : 1936,
+          "characters" : [
+            "Sherlock Holmes",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [ ],
+          "copies" : 0,
+          "avaliable" : false
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "1",
+        "_score" : 1930.0,
+        "_source" : {
+          "title" : "All Quiet on the Western Front",
+          "otitle" : "Im Westennichts Nenues",
+          "author" : "Erich Maria Remarque",
+          "year" : 1929,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [
+            "novel"
+          ],
+          "copies" : 1,
+          "avaliable" : true
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "6",
+        "_score" : 1905.0,
+        "_source" : {
+          "title" : "The Peasants",
+          "author" : "Widyslaw Reymont",
+          "avaliable" : true,
+          "characters" : [
+            "Maciej Boryna",
+            "Jankiel",
+            "Jagna Paczesiowna",
+            "Antek Boryna"
+          ],
+          "copies" : 4,
+          "otitle" : "Chiopi",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "polish",
+            "classics"
+          ],
+          "year" : 1904,
+          "review" : [
+            {
+              "nickname" : "anonymous",
+              "text" : "awsome book",
+              "stars" : 5
+            },
+            {
+              "nickname" : "Jane",
+              "text" : "Great book, but too long",
+              "stars" : 4
+            },
+            {
+              "nickname" : "Rick",
+              "text" : "Why bother, when you can find it on the internet",
+              "stars" : 3
+            }
+          ]
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "4",
+        "_score" : 1887.0,
+        "_source" : {
+          "title" : "Crime and Punishment",
+          "otitle" : "Crime and Punishment otitle",
+          "author" : "Fyodor Dostoevsky",
+          "year" : 1886,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [ ],
+          "copies" : 0,
+          "avaliable" : true
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "5",
+        "_score" : 1775.0,
+        "_source" : {
+          "title" : "The Sorrows of Young Werther",
+          "author" : "Johann Wolfgang von Goethe",
+          "avaliable" : true,
+          "characters" : [
+            "Werther",
+            "Lotte",
+            "Albert",
+            "Fraulein von B"
+          ],
+          "copies" : 1,
+          "otitle" : "Die Leiden des jungen Werthers",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "classics"
+          ],
+          "year" : 1774,
+          "review" : [
+            {
+              "nickname" : "Anna",
+              "text" : "Could be good, bug not my style",
+              "stars" : 3
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+
+
+#二次评分rescoring测试有条件的查询
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"match_all":{}
+	},
+	"rescore":{
+		"query":{
+			"rescore_query":{
+				"function_score":{
+					"query":{
+						"term":{
+							"title":"sorrows"
+						}
+					},
+					"script_score":{
+						"script":"doc[\"year\"].value"
+					}
+				}
+			}
+		}
+	}
+}'
+#返回：
+{
+  "took" : 4,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 6,
+    "max_score" : 1775.0,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "5",
+        "_score" : 1775.0,
+        "_source" : {
+          "title" : "The Sorrows of Young Werther",
+          "author" : "Johann Wolfgang von Goethe",
+          "avaliable" : true,
+          "characters" : [
+            "Werther",
+            "Lotte",
+            "Albert",
+            "Fraulein von B"
+          ],
+          "copies" : 1,
+          "otitle" : "Die Leiden des jungen Werthers",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "classics"
+          ],
+          "year" : 1774,
+          "review" : [
+            {
+              "nickname" : "Anna",
+              "text" : "Could be good, bug not my style",
+              "stars" : 3
+            }
+          ]
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "1",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "All Quiet on the Western Front",
+          "otitle" : "Im Westennichts Nenues",
+          "author" : "Erich Maria Remarque",
+          "year" : 1929,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [
+            "novel"
+          ],
+          "copies" : 1,
+          "avaliable" : true
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "2",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "Catch-22",
+          "author" : "Joseph Heller",
+          "year" : 1961,
+          "characters" : [
+            "Jhon Yossarian",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [
+            "novel"
+          ],
+          "copies" : 6,
+          "avaliable" : false
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "3",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "The Complete Sherlock Holmes",
+          "author" : "Arthur Conan Doyle",
+          "year" : 1936,
+          "characters" : [
+            "Sherlock Holmes",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [ ],
+          "copies" : 0,
+          "avaliable" : false
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "4",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "Crime and Punishment",
+          "otitle" : "Crime and Punishment otitle",
+          "author" : "Fyodor Dostoevsky",
+          "year" : 1886,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [ ],
+          "copies" : 0,
+          "avaliable" : true
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "6",
+        "_score" : 1.0,
+        "_source" : {
+          "title" : "The Peasants",
+          "author" : "Widyslaw Reymont",
+          "avaliable" : true,
+          "characters" : [
+            "Maciej Boryna",
+            "Jankiel",
+            "Jagna Paczesiowna",
+            "Antek Boryna"
+          ],
+          "copies" : 4,
+          "otitle" : "Chiopi",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "polish",
+            "classics"
+          ],
+          "year" : 1904,
+          "review" : [
+            {
+              "nickname" : "anonymous",
+              "text" : "awsome book",
+              "stars" : 5
+            },
+            {
+              "nickname" : "Jane",
+              "text" : "Great book, but too long",
+              "stars" : 4
+            },
+            {
+              "nickname" : "Rick",
+              "text" : "Why bother, when you can find it on the internet",
+              "stars" : 3
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+
+
+#多匹配控制，多个字段查询
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"multi_match":{
+			"query":"complete conan doyle",
+			"fields":["title^20", "author^10", "characters"]
+		}
+	}
+}'
+#返回：
+{
+  "took" : 7,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 29.704203,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "3",
+        "_score" : 29.704203,
+        "_source" : {
+          "title" : "The Complete Sherlock Holmes",
+          "author" : "Arthur Conan Doyle",
+          "year" : 1936,
+          "characters" : [
+            "Sherlock Holmes",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [ ],
+          "copies" : 0,
+          "avaliable" : false
+        }
+      }
+    ]
+  }
+}
+
+
+#多匹配查询-多个字段匹配-使用best_fields
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"multi_match":{
+			"query":"complete crime jankiel",
+			"fields":["title^20", "author^10", "characters"],
+			"type":"best_fields",
+			"tie_breaker":0.8
+		}
+	}
+}'
+#返回：
+{
+  "took" : 7,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 3,
+    "max_score" : 29.704203,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "3",
+        "_score" : 29.704203,
+        "_source" : {
+          "title" : "The Complete Sherlock Holmes",
+          "author" : "Arthur Conan Doyle",
+          "year" : 1936,
+          "characters" : [
+            "Sherlock Holmes",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [ ],
+          "copies" : 0,
+          "avaliable" : false
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "4",
+        "_score" : 29.704203,
+        "_source" : {
+          "title" : "Crime and Punishment",
+          "otitle" : "Crime and Punishment otitle",
+          "author" : "Fyodor Dostoevsky",
+          "year" : 1886,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [ ],
+          "copies" : 0,
+          "avaliable" : true
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "6",
+        "_score" : 1.7170827,
+        "_source" : {
+          "title" : "The Peasants",
+          "author" : "Widyslaw Reymont",
+          "avaliable" : true,
+          "characters" : [
+            "Maciej Boryna",
+            "Jankiel",
+            "Jagna Paczesiowna",
+            "Antek Boryna"
+          ],
+          "copies" : 4,
+          "otitle" : "Chiopi",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "polish",
+            "classics"
+          ],
+          "year" : 1904,
+          "review" : [
+            {
+              "nickname" : "anonymous",
+              "text" : "awsome book",
+              "stars" : 5
+            },
+            {
+              "nickname" : "Jane",
+              "text" : "Great book, but too long",
+              "stars" : 4
+            },
+            {
+              "nickname" : "Rick",
+              "text" : "Why bother, when you can find it on the internet",
+              "stars" : 3
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+#解释：
+curl -XGET 'localhost:9200/library/_validate/query?explain&pretty' -d '{
+	"query":{
+		"multi_match":{
+			"query":"complete crime jankiel",
+			"fields":["title^20", "author^10", "characters"],
+			"type":"best_fields",
+			"tie_breaker":0.8
+		}
+	}
+}'
+#返回：
+{
+  "valid" : true,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "explanations" : [
+    {
+      "index" : "library",
+      "valid" : true,
+      "explanation" : "+((author:complete author:crime author:jankiel)^10.0 | (characters:complete characters:crime characters:jankiel) | (title:complete title:crime title:jankiel)^20.0)~0.8 #(#*:* -_type:__*)"
+    }
+  ]
+}
+
+
+
+
+#多匹配控制-most_fields
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"query":{
+		"multi_match":{
+			"query":"complete crime jankiel",
+			"fields":["title^20", "author^10", "characters"],
+			"type":"most_fields"
+		}
+	}
+}'
+#返回：
+{
+  "took" : 3,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 3,
+    "max_score" : 29.704203,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "3",
+        "_score" : 29.704203,
+        "_source" : {
+          "title" : "The Complete Sherlock Holmes",
+          "author" : "Arthur Conan Doyle",
+          "year" : 1936,
+          "characters" : [
+            "Sherlock Holmes",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [ ],
+          "copies" : 0,
+          "avaliable" : false
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "4",
+        "_score" : 29.704203,
+        "_source" : {
+          "title" : "Crime and Punishment",
+          "otitle" : "Crime and Punishment otitle",
+          "author" : "Fyodor Dostoevsky",
+          "year" : 1886,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [ ],
+          "copies" : 0,
+          "avaliable" : true
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "6",
+        "_score" : 1.7170827,
+        "_source" : {
+          "title" : "The Peasants",
+          "author" : "Widyslaw Reymont",
+          "avaliable" : true,
+          "characters" : [
+            "Maciej Boryna",
+            "Jankiel",
+            "Jagna Paczesiowna",
+            "Antek Boryna"
+          ],
+          "copies" : 4,
+          "otitle" : "Chiopi",
+          "section" : 4,
+          "tags" : [
+            "novel",
+            "polish",
+            "classics"
+          ],
+          "year" : 1904,
+          "review" : [
+            {
+              "nickname" : "anonymous",
+              "text" : "awsome book",
+              "stars" : 5
+            },
+            {
+              "nickname" : "Jane",
+              "text" : "Great book, but too long",
+              "stars" : 4
+            },
+            {
+              "nickname" : "Rick",
+              "text" : "Why bother, when you can find it on the internet",
+              "stars" : 3
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+#解释：
+curl -XGET 'localhost:9200/library/_validate/query?explain&pretty' -d '{
+	"query":{
+		"multi_match":{
+			"query":"complete crime jankiel",
+			"fields":["title^20", "author^10", "characters"],
+			"type":"most_fields"
+		}
+	}
+}'
+#返回：
+{
+  "valid" : true,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "explanations" : [
+    {
+      "index" : "library",
+      "valid" : true,
+      "explanation" : "(author:complete author:crime author:jankiel)^10.0 (characters:complete characters:crime characters:jankiel) (title:complete title:crime title:jankiel)^20.0"
+    }
+  ]
+}
+
+
+#重要词项聚合
+#测试数据
+curl -XPOST 'localhost:9200/interns/review/1' -d '{"intern" : "Richard", "grade" : "bad", "type" : "grade"}'
+curl -XPOST 'localhost:9200/interns/review/2' -d '{"intern" : "Ralf", "grade" : "perfect", "type" : "grade"}'
+curl -XPOST 'localhost:9200/interns/review/3' -d '{"intern" : "Richard", "grade" : "bad", "type" : "grade"}'
+curl -XPOST 'localhost:9200/interns/review/4' -d '{"intern" : "Richard", "grade" : "bad", "type" : "review"}'
+curl -XPOST 'localhost:9200/interns/review/5' -d '{"intern" : "Richard", "grade" : "good", "type" : "grade"}'
+curl -XPOST 'localhost:9200/interns/review/6' -d '{"intern" : "Ralf", "grade" : "good", "type" : "grade"}'
+curl -XPOST 'localhost:9200/interns/review/7' -d '{"intern" : "Ralf", "grade" : "perfect", "type" : "review"}'
+curl -XPOST 'localhost:9200/interns/review/8' -d '{"intern" : "Richard", "grade" : "medium", "type" : "review"}'
+curl -XPOST 'localhost:9200/interns/review/9' -d '{"intern" : "Monica", "grade" : "medium", "type" : "grade"}'
+curl -XPOST 'localhost:9200/interns/review/10' -d '{"intern" : "Monica", "grade" : "medium", "type" : "grade"}'
+curl -XPOST 'localhost:9200/interns/review/11' -d '{"intern" : "Ralf", "grade" : "good", "type" : "grade"}'
+curl -XPOST 'localhost:9200/interns/review/12' -d '{"intern" : "Ralf", "grade" : "good", "type" : "grade"}'
+
+
+#统计Richard的评价
+curl -XGET 'localhost:9200/interns/_search?pretty' -d '{
+	"query":{
+		"match":{
+			"intern":"Richard"
+		}
+	},
+	"aggregations":{
+		"description":{
+			"significant_terms":{
+				"field":"grade"
+			}
+		}
+	}
+}'
+#返回报错：
+{
+  "error" : {
+    "root_cause" : [
+      {
+        "type" : "illegal_argument_exception",
+        "reason" : "Fielddata is disabled on text fields by default. Set fielddata=true on [grade] in order to load fielddata in memory by uninverting the inverted index. Note that this can however use significant memory. Alternatively use a keyword field instead."
+      }
+    ],
+    "type" : "search_phase_execution_exception",
+    "reason" : "all shards failed",
+    "phase" : "query",
+    "grouped" : true,
+    "failed_shards" : [
+      {
+        "shard" : 0,
+        "index" : "interns",
+        "node" : "lLX45OxeRDSb3cYu1NtGIw",
+        "reason" : {
+          "type" : "illegal_argument_exception",
+          "reason" : "Fielddata is disabled on text fields by default. Set fielddata=true on [grade] in order to load fielddata in memory by uninverting the inverted index. Note that this can however use significant memory. Alternatively use a keyword field instead."
+        }
+      }
+    ]
+  },
+  "status" : 400
+}
+#因为grade默认是text类型，没有缓存fielddata，故需要更改设置。
+#https://www.elastic.co/guide/en/elasticsearch/reference/5.5/fielddata.html 只更改下请求报文即可：
+curl -XGET 'localhost:9200/interns/_search?pretty' -d '{
+	"query":{
+		"match":{
+			"intern":"Richard"
+		}
+	},
+	"aggregations":{
+		"description":{
+			"significant_terms":{
+				"field":"grade.keyword"
+			}
+		}
+	}
+}'
+#返回：
+{
+  "took" : 76,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 5,
+    "max_score" : 0.9808292,
+    "hits" : [
+      {
+        "_index" : "interns",
+        "_type" : "review",
+        "_id" : "4",
+        "_score" : 0.9808292,
+        "_source" : {
+          "intern" : "Richard",
+          "grade" : "bad",
+          "type" : "review"
+        }
+      },
+      {
+        "_index" : "interns",
+        "_type" : "review",
+        "_id" : "5",
+        "_score" : 0.87546873,
+        "_source" : {
+          "intern" : "Richard",
+          "grade" : "good",
+          "type" : "grade"
+        }
+      },
+      {
+        "_index" : "interns",
+        "_type" : "review",
+        "_id" : "8",
+        "_score" : 0.87546873,
+        "_source" : {
+          "intern" : "Richard",
+          "grade" : "medium",
+          "type" : "review"
+        }
+      },
+      {
+        "_index" : "interns",
+        "_type" : "review",
+        "_id" : "1",
+        "_score" : 0.6931472,
+        "_source" : {
+          "intern" : "Richard",
+          "grade" : "bad",
+          "type" : "grade"
+        }
+      },
+      {
+        "_index" : "interns",
+        "_type" : "review",
+        "_id" : "3",
+        "_score" : 0.6931472,
+        "_source" : {
+          "intern" : "Richard",
+          "grade" : "bad",
+          "type" : "grade"
+        }
+      }
+    ]
+  },
+  "aggregations" : {
+    "description" : {
+      "doc_count" : 5,
+      "bg_count" : 12,
+      "buckets" : [
+        {
+          "key" : "bad",
+          "doc_count" : 3,
+          "score" : 0.84,
+          "bg_count" : 3
+        }
+      ]
+    }
+  }
+}
+
+
+#重要词项不一定都有返回
+curl -XGET 'localhost:9200/interns/_search?pretty' -d '{
+	"aggregations":{
+		"grades":{
+			"terms":{
+				"field":"intern.keyword"
+			},
+			"aggregations":{
+				"description":{
+					"significant_terms":{
+						"field":"grade.keyword"
+					}
+				}
+			}
+		}
+	},
+	"size":0
+}'
+#返回，因Monica的grade字段的词项重要度并没有显著变化，故es认为不重要：
+{
+  "took" : 11,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 12,
+    "max_score" : 0.0,
+    "hits" : [ ]
+  },
+  "aggregations" : {
+    "grades" : {
+      "doc_count_error_upper_bound" : 0,
+      "sum_other_doc_count" : 0,
+      "buckets" : [
+        {
+          "key" : "Ralf",
+          "doc_count" : 5,
+          "description" : {
+            "doc_count" : 5,
+            "bg_count" : 12,
+            "buckets" : [
+              {
+                "key" : "good",
+                "doc_count" : 3,
+                "score" : 0.48,
+                "bg_count" : 4
+              }
+            ]
+          }
+        },
+        {
+          "key" : "Richard",
+          "doc_count" : 5,
+          "description" : {
+            "doc_count" : 5,
+            "bg_count" : 12,
+            "buckets" : [
+              {
+                "key" : "bad",
+                "doc_count" : 3,
+                "score" : 0.84,
+                "bg_count" : 3
+              }
+            ]
+          }
+        },
+        {
+          "key" : "Monica",
+          "doc_count" : 2,
+          "description" : {
+            "doc_count" : 2,
+            "bg_count" : 5,
+            "buckets" : [ ]
+          }
+        }
+      ]
+    }
+  }
+}
+
+
+#重要词项-后台数据集过滤
+curl -XGET 'localhost:9200/interns/_search?pretty' -d '{
+	"aggregations":{
+		"grades":{
+			"terms":{
+				"field":"intern.keyword"
+			},
+			"aggregations":{
+				"description":{
+					"significant_terms":{
+						"field":"grade.keyword",
+						"background_filter":{
+							"term":{
+								"type":"grade"
+							}
+						}
+					}
+				}
+			}
+		},
+		"grades-aggs":{
+			"terms":{
+				"field":"grade.keyword"
+			}
+		}
+	},
+	"size":0
+}'
+#返回：
+{
+  "took" : 12,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 12,
+    "max_score" : 0.0,
+    "hits" : [ ]
+  },
+  "aggregations" : {
+    "grades-aggs" : {
+      "doc_count_error_upper_bound" : 0,
+      "sum_other_doc_count" : 0,
+      "buckets" : [
+        {
+          "key" : "good",
+          "doc_count" : 4
+        },
+        {
+          "key" : "bad",
+          "doc_count" : 3
+        },
+        {
+          "key" : "medium",
+          "doc_count" : 3
+        },
+        {
+          "key" : "perfect",
+          "doc_count" : 2
+        }
+      ]
+    },
+    "grades" : {
+      "doc_count_error_upper_bound" : 0,
+      "sum_other_doc_count" : 0,
+      "buckets" : [
+        {
+          "key" : "Ralf",
+          "doc_count" : 5,
+          "description" : {
+            "doc_count" : 5,
+            "bg_count" : 9,
+            "buckets" : [
+              {
+                "key" : "good",
+                "doc_count" : 3,
+                "score" : 0.21000000000000002,
+                "bg_count" : 4
+              }
+            ]
+          }
+        },
+        {
+          "key" : "Richard",
+          "doc_count" : 5,
+          "description" : {
+            "doc_count" : 5,
+            "bg_count" : 9,
+            "buckets" : [
+              {
+                "key" : "bad",
+                "doc_count" : 3,
+                "score" : 1.02,
+                "bg_count" : 2
+              }
+            ]
+          }
+        },
+        {
+          "key" : "Monica",
+          "doc_count" : 2,
+          "description" : {
+            "doc_count" : 2,
+            "bg_count" : 4,
+            "buckets" : [ ]
+          }
+        }
+      ]
+    }
+  }
+}
+
+
+#分组-测试top_hits https://www.elastic.co/guide/en/elasticsearch/reference/5.5/search-aggregations-metrics-top-hits-aggregation.html#_field_collapse_example
+curl -XGET 'localhost:9200/interns/_search?pretty' -d '{
+	"aggregations":{
+		"grades-aggs":{
+			"terms":{
+				"field":"grade.keyword"
+			},
+			"aggs":{
+				"top_type":{
+					"top_hits":{
+						"sort": [{
+							"intern.keyword":"desc"
+						}],
+						"_source":{
+							"includes":["intern", "garde"]
+						},
+						"size":2
+					}
+				}
+			}
+		}
+	},
+	"size":0
+}'
+#返回：
+{
+  "took" : 37,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 12,
+    "max_score" : 0.0,
+    "hits" : [ ]
+  },
+  "aggregations" : {
+    "grades-aggs" : {
+      "doc_count_error_upper_bound" : 0,
+      "sum_other_doc_count" : 0,
+      "buckets" : [
+        {
+          "key" : "good",
+          "doc_count" : 4,
+          "top_type" : {
+            "hits" : {
+              "total" : 4,
+              "max_score" : null,
+              "hits" : [
+                {
+                  "_index" : "interns",
+                  "_type" : "review",
+                  "_id" : "5",
+                  "_score" : null,
+                  "_source" : {
+                    "intern" : "Richard"
+                  },
+                  "sort" : [
+                    "Richard"
+                  ]
+                },
+                {
+                  "_index" : "interns",
+                  "_type" : "review",
+                  "_id" : "12",
+                  "_score" : null,
+                  "_source" : {
+                    "intern" : "Ralf"
+                  },
+                  "sort" : [
+                    "Ralf"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "key" : "bad",
+          "doc_count" : 3,
+          "top_type" : {
+            "hits" : {
+              "total" : 3,
+              "max_score" : null,
+              "hits" : [
+                {
+                  "_index" : "interns",
+                  "_type" : "review",
+                  "_id" : "4",
+                  "_score" : null,
+                  "_source" : {
+                    "intern" : "Richard"
+                  },
+                  "sort" : [
+                    "Richard"
+                  ]
+                },
+                {
+                  "_index" : "interns",
+                  "_type" : "review",
+                  "_id" : "1",
+                  "_score" : null,
+                  "_source" : {
+                    "intern" : "Richard"
+                  },
+                  "sort" : [
+                    "Richard"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "key" : "medium",
+          "doc_count" : 3,
+          "top_type" : {
+            "hits" : {
+              "total" : 3,
+              "max_score" : null,
+              "hits" : [
+                {
+                  "_index" : "interns",
+                  "_type" : "review",
+                  "_id" : "8",
+                  "_score" : null,
+                  "_source" : {
+                    "intern" : "Richard"
+                  },
+                  "sort" : [
+                    "Richard"
+                  ]
+                },
+                {
+                  "_index" : "interns",
+                  "_type" : "review",
+                  "_id" : "9",
+                  "_score" : null,
+                  "_source" : {
+                    "intern" : "Monica"
+                  },
+                  "sort" : [
+                    "Monica"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "key" : "perfect",
+          "doc_count" : 2,
+          "top_type" : {
+            "hits" : {
+              "total" : 2,
+              "max_score" : null,
+              "hits" : [
+                {
+                  "_index" : "interns",
+                  "_type" : "review",
+                  "_id" : "2",
+                  "_score" : null,
+                  "_source" : {
+                    "intern" : "Ralf"
+                  },
+                  "sort" : [
+                    "Ralf"
+                  ]
+                },
+                {
+                  "_index" : "interns",
+                  "_type" : "review",
+                  "_id" : "7",
+                  "_score" : null,
+                  "_source" : {
+                    "intern" : "Ralf"
+                  },
+                  "sort" : [
+                    "Ralf"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
+
+#分组-按照100年分组，每组返回1本书籍
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"size":0,
+	"aggs":{
+		"aggs_when":{
+			"histogram":{
+				"field":"year",
+				"interval":100
+			},
+			"aggs":{
+				"aggs_book":{
+					"top_hits":{
+						"_source":{
+							"includes":["title", "year"]
+						},
+						"sort":{
+							"year":"desc"
+						},
+						"size":1
+					}
+				}
+			}
+		}
+	}
+}'
+#返回：
+{
+  "took" : 21,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 6,
+    "max_score" : 0.0,
+    "hits" : [ ]
+  },
+  "aggregations" : {
+    "aggs_when" : {
+      "buckets" : [
+        {
+          "key" : 1700.0,
+          "doc_count" : 1,
+          "aggs_book" : {
+            "hits" : {
+              "total" : 1,
+              "max_score" : null,
+              "hits" : [
+                {
+                  "_index" : "library",
+                  "_type" : "book",
+                  "_id" : "5",
+                  "_score" : null,
+                  "_source" : {
+                    "year" : 1774,
+                    "title" : "The Sorrows of Young Werther"
+                  },
+                  "sort" : [
+                    1774
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "key" : 1800.0,
+          "doc_count" : 1,
+          "aggs_book" : {
+            "hits" : {
+              "total" : 1,
+              "max_score" : null,
+              "hits" : [
+                {
+                  "_index" : "library",
+                  "_type" : "book",
+                  "_id" : "4",
+                  "_score" : null,
+                  "_source" : {
+                    "year" : 1886,
+                    "title" : "Crime and Punishment"
+                  },
+                  "sort" : [
+                    1886
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "key" : 1900.0,
+          "doc_count" : 4,
+          "aggs_book" : {
+            "hits" : {
+              "total" : 4,
+              "max_score" : null,
+              "hits" : [
+                {
+                  "_index" : "library",
+                  "_type" : "book",
+                  "_id" : "2",
+                  "_score" : null,
+                  "_source" : {
+                    "year" : 1961,
+                    "title" : "Catch-22"
+                  },
+                  "sort" : [
+                    1961
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
+
+#分组-一个很大的例子
+curl -XGET 'localhost:9200/library/_search?pretty' -d '{
+	"size":2,
+	"query":{
+		"bool":{
+			"must":{
+				"match":{
+					"_all":"kropp"
+				}
+			},
+			"filter":{
+				"term":{
+					"copies":0
+				}
+			}
+		}
+	},
+	"aggs":{
+		"aggs_when":{
+			"histogram":{
+				"field":"year",
+				"interval":100
+			},
+			"aggs":{
+				"aggs_book":{
+					"top_hits":{
+						"highlight":{
+							"fields":{
+								"title":{}
+							}
+						},
+						"explain":true,
+						"version":true,
+						"_source":{
+							"includes":["title", "year"]
+						},
+						"script_fields":{
+							"century":{
+								"script":"(doc[\"year\"].value / 100).intValue()"
+							}
+						},
+						"size":2
+					}
+				}
+			}
+		}
+	}
+}'
+#返回：
+{
+  "took" : 9,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 2,
+    "max_score" : 0.4857913,
+    "hits" : [
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "3",
+        "_score" : 0.4857913,
+        "_source" : {
+          "title" : "The Complete Sherlock Holmes",
+          "author" : "Arthur Conan Doyle",
+          "year" : 1936,
+          "characters" : [
+            "Sherlock Holmes",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [ ],
+          "copies" : 0,
+          "avaliable" : false
+        }
+      },
+      {
+        "_index" : "library",
+        "_type" : "book",
+        "_id" : "4",
+        "_score" : 0.43124044,
+        "_source" : {
+          "title" : "Crime and Punishment",
+          "otitle" : "Crime and Punishment otitle",
+          "author" : "Fyodor Dostoevsky",
+          "year" : 1886,
+          "characters" : [
+            "Paul Baumer",
+            "Albert Kropp",
+            "Haie Westhus",
+            "Fredrich Muller",
+            "Stanislaus Katczinsky",
+            "Tjaden"
+          ],
+          "tags" : [ ],
+          "copies" : 0,
+          "avaliable" : true
+        }
+      }
+    ]
+  },
+  "aggregations" : {
+    "aggs_when" : {
+      "buckets" : [
+        {
+          "key" : 1800.0,
+          "doc_count" : 1,
+          "aggs_book" : {
+            "hits" : {
+              "total" : 1,
+              "max_score" : 0.43124044,
+              "hits" : [
+                {
+                  "_shard" : "[library][0]",
+                  "_node" : "lLX45OxeRDSb3cYu1NtGIw",
+                  "_index" : "library",
+                  "_type" : "book",
+                  "_id" : "4",
+                  "_version" : 1,
+                  "_score" : 0.43124044,
+                  "_source" : {
+                    "year" : 1886,
+                    "title" : "Crime and Punishment"
+                  },
+                  "fields" : {
+                    "century" : [
+                      18
+                    ]
+                  },
+                  "_explanation" : {
+                    "value" : 0.43124044,
+                    "description" : "sum of:",
+                    "details" : [
+                      {
+                        "value" : 0.43124044,
+                        "description" : "weight(_all:kropp in 3) [PerFieldSimilarity], result of:",
+                        "details" : [
+                          {
+                            "value" : 0.43124044,
+                            "description" : "score(doc=3,freq=1.0 = termFreq=1.0\n), product of:",
+                            "details" : [
+                              {
+                                "value" : 0.44183275,
+                                "description" : "idf, computed as log(1 + (docCount - docFreq + 0.5) / (docFreq + 0.5)) from:",
+                                "details" : [
+                                  {
+                                    "value" : 4.0,
+                                    "description" : "docFreq",
+                                    "details" : [ ]
+                                  },
+                                  {
+                                    "value" : 6.0,
+                                    "description" : "docCount",
+                                    "details" : [ ]
+                                  }
+                                ]
+                              },
+                              {
+                                "value" : 0.9760264,
+                                "description" : "tfNorm, computed as (freq * (k1 + 1)) / (freq + k1 * (1 - b + b * fieldLength / avgFieldLength)) from:",
+                                "details" : [
+                                  {
+                                    "value" : 1.0,
+                                    "description" : "termFreq=1.0",
+                                    "details" : [ ]
+                                  },
+                                  {
+                                    "value" : 1.2,
+                                    "description" : "parameter k1",
+                                    "details" : [ ]
+                                  },
+                                  {
+                                    "value" : 0.75,
+                                    "description" : "parameter b",
+                                    "details" : [ ]
+                                  },
+                                  {
+                                    "value" : 26.833334,
+                                    "description" : "avgFieldLength",
+                                    "details" : [ ]
+                                  },
+                                  {
+                                    "value" : 28.444445,
+                                    "description" : "fieldLength",
+                                    "details" : [ ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "value" : 0.0,
+                        "description" : "match on required clause, product of:",
+                        "details" : [
+                          {
+                            "value" : 0.0,
+                            "description" : "# clause",
+                            "details" : [ ]
+                          },
+                          {
+                            "value" : 1.0,
+                            "description" : "copies:[0 TO 0], product of:",
+                            "details" : [
+                              {
+                                "value" : 1.0,
+                                "description" : "boost",
+                                "details" : [ ]
+                              },
+                              {
+                                "value" : 1.0,
+                                "description" : "queryNorm",
+                                "details" : [ ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "key" : 1900.0,
+          "doc_count" : 1,
+          "aggs_book" : {
+            "hits" : {
+              "total" : 1,
+              "max_score" : 0.4857913,
+              "hits" : [
+                {
+                  "_shard" : "[library][0]",
+                  "_node" : "lLX45OxeRDSb3cYu1NtGIw",
+                  "_index" : "library",
+                  "_type" : "book",
+                  "_id" : "3",
+                  "_version" : 1,
+                  "_score" : 0.4857913,
+                  "_source" : {
+                    "year" : 1936,
+                    "title" : "The Complete Sherlock Holmes"
+                  },
+                  "fields" : {
+                    "century" : [
+                      19
+                    ]
+                  },
+                  "_explanation" : {
+                    "value" : 0.4857913,
+                    "description" : "sum of:",
+                    "details" : [
+                      {
+                        "value" : 0.4857913,
+                        "description" : "weight(_all:kropp in 2) [PerFieldSimilarity], result of:",
+                        "details" : [
+                          {
+                            "value" : 0.4857913,
+                            "description" : "score(doc=2,freq=1.0 = termFreq=1.0\n), product of:",
+                            "details" : [
+                              {
+                                "value" : 0.44183275,
+                                "description" : "idf, computed as log(1 + (docCount - docFreq + 0.5) / (docFreq + 0.5)) from:",
+                                "details" : [
+                                  {
+                                    "value" : 4.0,
+                                    "description" : "docFreq",
+                                    "details" : [ ]
+                                  },
+                                  {
+                                    "value" : 6.0,
+                                    "description" : "docCount",
+                                    "details" : [ ]
+                                  }
+                                ]
+                              },
+                              {
+                                "value" : 1.0994914,
+                                "description" : "tfNorm, computed as (freq * (k1 + 1)) / (freq + k1 * (1 - b + b * fieldLength / avgFieldLength)) from:",
+                                "details" : [
+                                  {
+                                    "value" : 1.0,
+                                    "description" : "termFreq=1.0",
+                                    "details" : [ ]
+                                  },
+                                  {
+                                    "value" : 1.2,
+                                    "description" : "parameter k1",
+                                    "details" : [ ]
+                                  },
+                                  {
+                                    "value" : 0.75,
+                                    "description" : "parameter b",
+                                    "details" : [ ]
+                                  },
+                                  {
+                                    "value" : 26.833334,
+                                    "description" : "avgFieldLength",
+                                    "details" : [ ]
+                                  },
+                                  {
+                                    "value" : 20.897959,
+                                    "description" : "fieldLength",
+                                    "details" : [ ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "value" : 0.0,
+                        "description" : "match on required clause, product of:",
+                        "details" : [
+                          {
+                            "value" : 0.0,
+                            "description" : "# clause",
+                            "details" : [ ]
+                          },
+                          {
+                            "value" : 1.0,
+                            "description" : "copies:[0 TO 0], product of:",
+                            "details" : [
+                              {
+                                "value" : 1.0,
+                                "description" : "boost",
+                                "details" : [ ]
+                              },
+                              {
+                                "value" : 1.0,
+                                "description" : "queryNorm",
+                                "details" : [ ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
+

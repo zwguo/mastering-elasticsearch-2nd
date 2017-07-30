@@ -1,0 +1,4 @@
+{"index": {"_index": "rel_pch_m12", "_type": "cparent12", "_id": "1"}}
+{"title" : "Doc no 1", "quantity" : 101}
+{"index": {"_index": "rel_pch_m12", "_type": "cson12", "_id": "1", "_parent": "1"}}
+{"isbn" : "no1", "circulation" : 501}
