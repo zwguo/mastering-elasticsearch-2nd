@@ -1,0 +1,252 @@
+2017-08-16 10:12 于ctrip
+
+1、下载
+https://github.com/medcl/elasticsearch-analysis-ik
+代码，切到对应的tag，比如git checkout 5.3.2
+然后编译：mvn clean package
+然后找到elasticsearch-analysis-ik\target\releases下面的包：elasticsearch-analysis-ik-5.3.2.zip
+2、安装
+找到F:\myes\5.3.2\elasticsearch-5.3.2\plugins文件夹，然后创建analysis-ik文件夹，把压缩包解压到里面：
+F:\myes\5.3.2\elasticsearch-5.3.2\plugins\analysis-ik>tree . /F
+卷 Other 的文件夹 PATH 列表
+卷序列号为 EE54-41BD
+F:\MYES\5.3.2\ELASTICSEARCH-5.3.2\PLUGINS\ANALYSIS-IK
+│  commons-codec-1.9.jar
+│  commons-logging-1.2.jar
+│  elasticsearch-analysis-ik-5.3.2.jar
+│  elasticsearch-analysis-ik-5.3.2.zip
+│  httpclient-4.5.2.jar
+│  httpcore-4.4.4.jar
+│  plugin-descriptor.properties
+│
+└─config
+    │  IKAnalyzer.cfg.xml
+    │  main.dic
+    │  preposition.dic
+    │  quantifier.dic
+    │  stopword.dic
+    │  suffix.dic
+    │  surname.dic
+    │
+    └─custom
+            ext_stopword.dic
+            mydict.dic
+            single_word.dic
+            single_word_full.dic
+            single_word_low_freq.dic
+            sougou.dic
+3、重启搞定
+使用原生分词：
+localhost:9200/zwguobook/_analyze?analyzer=standard&pretty=true&text=上海迪士尼度假区disney%20abc%20a
+{
+    "tokens": [
+        {
+            "token": "上",
+            "start_offset": 0,
+            "end_offset": 1,
+            "type": "<IDEOGRAPHIC>",
+            "position": 0
+        },
+        {
+            "token": "海",
+            "start_offset": 1,
+            "end_offset": 2,
+            "type": "<IDEOGRAPHIC>",
+            "position": 1
+        },
+        {
+            "token": "迪",
+            "start_offset": 2,
+            "end_offset": 3,
+            "type": "<IDEOGRAPHIC>",
+            "position": 2
+        },
+        {
+            "token": "士",
+            "start_offset": 3,
+            "end_offset": 4,
+            "type": "<IDEOGRAPHIC>",
+            "position": 3
+        },
+        {
+            "token": "尼",
+            "start_offset": 4,
+            "end_offset": 5,
+            "type": "<IDEOGRAPHIC>",
+            "position": 4
+        },
+        {
+            "token": "度",
+            "start_offset": 5,
+            "end_offset": 6,
+            "type": "<IDEOGRAPHIC>",
+            "position": 5
+        },
+        {
+            "token": "假",
+            "start_offset": 6,
+            "end_offset": 7,
+            "type": "<IDEOGRAPHIC>",
+            "position": 6
+        },
+        {
+            "token": "区",
+            "start_offset": 7,
+            "end_offset": 8,
+            "type": "<IDEOGRAPHIC>",
+            "position": 7
+        },
+        {
+            "token": "disney",
+            "start_offset": 8,
+            "end_offset": 14,
+            "type": "<ALPHANUM>",
+            "position": 8
+        },
+        {
+            "token": "abc",
+            "start_offset": 15,
+            "end_offset": 18,
+            "type": "<ALPHANUM>",
+            "position": 9
+        },
+        {
+            "token": "a",
+            "start_offset": 19,
+            "end_offset": 20,
+            "type": "<ALPHANUM>",
+            "position": 10
+        }
+    ]
+}
+使用ik分词器-ik_max_word：
+localhost:9200/zwguobook/_analyze?analyzer=ik_max_word&pretty=true&text=上海迪士尼度假区disney%20abc%20a
+{
+    "tokens": [
+        {
+            "token": "上海",
+            "start_offset": 0,
+            "end_offset": 2,
+            "type": "CN_WORD",
+            "position": 0
+        },
+        {
+            "token": "迪士尼",
+            "start_offset": 2,
+            "end_offset": 5,
+            "type": "CN_WORD",
+            "position": 1
+        },
+        {
+            "token": "迪",
+            "start_offset": 2,
+            "end_offset": 3,
+            "type": "CN_WORD",
+            "position": 2
+        },
+        {
+            "token": "士",
+            "start_offset": 3,
+            "end_offset": 4,
+            "type": "CN_CHAR",
+            "position": 3
+        },
+        {
+            "token": "尼",
+            "start_offset": 4,
+            "end_offset": 5,
+            "type": "CN_WORD",
+            "position": 4
+        },
+        {
+            "token": "度假",
+            "start_offset": 5,
+            "end_offset": 7,
+            "type": "CN_WORD",
+            "position": 5
+        },
+        {
+            "token": "区",
+            "start_offset": 7,
+            "end_offset": 8,
+            "type": "CN_CHAR",
+            "position": 6
+        },
+        {
+            "token": "disney",
+            "start_offset": 8,
+            "end_offset": 14,
+            "type": "ENGLISH",
+            "position": 7
+        },
+        {
+            "token": "abc",
+            "start_offset": 15,
+            "end_offset": 18,
+            "type": "ENGLISH",
+            "position": 8
+        },
+        {
+            "token": "a",
+            "start_offset": 19,
+            "end_offset": 20,
+            "type": "ENGLISH",
+            "position": 9
+        }
+    ]
+}
+使用ik分词器-ik_smart：
+localhost:9200/zwguobook/_analyze?analyzer=ik_smart&pretty=true&text=上海迪士尼度假区disney%20abc%20a
+{
+    "tokens": [
+        {
+            "token": "上海",
+            "start_offset": 0,
+            "end_offset": 2,
+            "type": "CN_WORD",
+            "position": 0
+        },
+        {
+            "token": "迪士尼",
+            "start_offset": 2,
+            "end_offset": 5,
+            "type": "CN_WORD",
+            "position": 1
+        },
+        {
+            "token": "度假",
+            "start_offset": 5,
+            "end_offset": 7,
+            "type": "CN_WORD",
+            "position": 2
+        },
+        {
+            "token": "区",
+            "start_offset": 7,
+            "end_offset": 8,
+            "type": "CN_CHAR",
+            "position": 3
+        },
+        {
+            "token": "disney",
+            "start_offset": 8,
+            "end_offset": 14,
+            "type": "ENGLISH",
+            "position": 4
+        },
+        {
+            "token": "abc",
+            "start_offset": 15,
+            "end_offset": 18,
+            "type": "ENGLISH",
+            "position": 5
+        },
+        {
+            "token": "a",
+            "start_offset": 19,
+            "end_offset": 20,
+            "type": "ENGLISH",
+            "position": 6
+        }
+    ]
+}
