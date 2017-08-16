@@ -1,0 +1,15 @@
+2017-08-16 10:25 于cp v5.3.2
+https://www.elastic.co/guide/en/elasticsearch/reference/current/_cluster_health.html
+
+1、查看集群状态
+http://localhost:9200/_cat/health?v
+epoch      timestamp cluster           status node.total node.data shards pri relo init unassign pending_tasks max_task_wait_time active_shards_percent
+1502850334 10:25:34  actautocompletees yellow          1         1      1   1    0    0        1             0                  -                 50.0%
+2、查看节点
+http://localhost:9200/_cat/nodes?v
+ip        heap.percent ram.percent cpu load_1m load_5m load_15m node.role master name
+127.0.0.1           15          82   3                          mdi       *      actautocompleteesnode1
+3、查看索引
+http://localhost:9200/_cat/indices?v
+health status index     uuid                   pri rep docs.count docs.deleted store.size pri.store.size
+yellow open   zwguobook GugYWOHvRHuqMQ0zPuN4Vg   1   1          0            0       159b           159b

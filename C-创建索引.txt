@@ -1,0 +1,19 @@
+2017-08-16 12:51 ÓÚcp v5.3.2
+https://www.elastic.co/guide/en/elasticsearch/reference/current/_create_an_index.html
+https://www.elastic.co/guide/en/elasticsearch/reference/current/indices.html
+
+1¡¢create index zwguolibrary
+PUT http://localhost:9200/zwguolibrary
+{
+	"settings":{
+		"index":{
+			"number_of_shards": 1,
+			"number_of_replicas":0
+		}
+	}
+}
+·µ»Ø£º
+{
+    "acknowledged": true,
+    "shards_acknowledged": true
+}
